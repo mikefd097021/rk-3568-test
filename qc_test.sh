@@ -8,7 +8,7 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+BLUE='\033[1;36m'    # 改為亮青色，更容易看清
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 WHITE='\033[1;37m'
@@ -39,10 +39,10 @@ print_result() {
     local test_name="$1"
     local result="$2"
     local details="$3"
-    
+
     test_count=$((test_count + 1))
     test_results["$test_name"]="$result"
-    
+
     if [ "$result" = "PASS" ]; then
         echo -e "${GREEN}✓ $test_name: PASS${NC}"
         [ -n "$details" ] && echo -e "  ${BLUE}Details: $details${NC}"
@@ -71,7 +71,7 @@ ask_user() {
 # Test functions
 test_network() {
     print_header "網路連線測試"
-    
+
     # Test eth0
     echo -e "${BLUE}測試 eth0 連線...${NC}"
     if ping -I eth0 192.168.8.1 -c 3 -W 10 >/dev/null 2>&1; then
@@ -79,7 +79,7 @@ test_network() {
     else
         print_result "ETH0_CONNECTIVITY" "FAIL" "eth0 ping 192.168.8.1 失敗"
     fi
-    
+
     # Test eth1
     echo -e "${BLUE}測試 eth1 連線...${NC}"
     if ping -I eth1 192.168.8.1 -c 3 -W 10 >/dev/null 2>&1; then
@@ -91,50 +91,50 @@ test_network() {
 
 test_gpio() {
     print_header "GPIO 測試"
-    
+
     local gpio_ids=(5 6 8 13 16 17 90 91)
     local gpio_test_result="PASS"
     local failed_gpios=()
-    
+
     echo -e "${BLUE}準備測試 GPIO: ${gpio_ids[*]}${NC}"
-    
+
     # Export and configure GPIOs
     for gpio in "${gpio_ids[@]}"; do
         echo "$gpio" > /sys/class/gpio/export 2>/dev/null
         echo "out" > "/sys/class/gpio/gpio$gpio/direction" 2>/dev/null
     done
-    
+
     # Turn on all GPIOs
     echo -e "${BLUE}點亮所有 GPIO...${NC}"
     for gpio in "${gpio_ids[@]}"; do
         echo "1" > "/sys/class/gpio/gpio$gpio/value" 2>/dev/null
     done
-    
+
     if ask_user "所有 GPIO 是否已點亮？"; then
         echo -e "${GREEN}GPIO 點亮測試通過${NC}"
     else
         gpio_test_result="FAIL"
         failed_gpios+=("點亮測試失敗")
     fi
-    
+
     # Turn off all GPIOs
     echo -e "${BLUE}關閉所有 GPIO...${NC}"
     for gpio in "${gpio_ids[@]}"; do
         echo "0" > "/sys/class/gpio/gpio$gpio/value" 2>/dev/null
     done
-    
+
     if ask_user "所有 GPIO 是否已關閉？"; then
         echo -e "${GREEN}GPIO 關閉測試通過${NC}"
     else
         gpio_test_result="FAIL"
         failed_gpios+=("關閉測試失敗")
     fi
-    
+
     # Cleanup
     for gpio in "${gpio_ids[@]}"; do
         echo "$gpio" > /sys/class/gpio/unexport 2>/dev/null
     done
-    
+
     if [ "$gpio_test_result" = "PASS" ]; then
         print_result "GPIO_TEST" "PASS" "所有 GPIO 測試通過"
     else
@@ -144,32 +144,74 @@ test_gpio() {
 
 test_emmc() {
     print_header "eMMC 存儲測試"
-    
-    echo -e "${BLUE}測試 eMMC 寫入性能...${NC}"
+
+    # 使用較小的測試大小以避免卡住，並添加超時控制
+    local test_size=100  # 減少到 100MB
+    local timeout_seconds=60  # 60秒超時
+
+    echo -e "${BLUE}測試 eMMC 寫入性能 (${test_size}MB)...${NC}"
     local write_result
-    write_result=$(dd if=/dev/zero of=./test_emmc bs=1M count=500 conv=fsync 2>&1)
-    local write_exit_code=$?
-    
+    local write_exit_code
+
+    # 使用 timeout 命令防止卡住，並顯示進度
+    if command -v pv >/dev/null 2>&1; then
+        # 如果有 pv 命令，顯示進度條
+        write_result=$(timeout $timeout_seconds dd if=/dev/zero bs=1M count=$test_size 2>/dev/null | pv -s ${test_size}M | dd of=./test_emmc conv=fsync 2>&1)
+        write_exit_code=$?
+    else
+        # 沒有 pv 命令，使用普通 dd 但加上超時和簡單進度提示
+        echo -e "${BLUE}  正在寫入 ${test_size}MB 數據，請稍候...${NC}"
+        write_result=$(timeout $timeout_seconds dd if=/dev/zero of=./test_emmc bs=1M count=$test_size conv=fsync status=progress 2>&1)
+        write_exit_code=$?
+    fi
+
+    if [ $write_exit_code -eq 124 ]; then
+        echo -e "${YELLOW}寫入測試超時 (${timeout_seconds}秒)${NC}"
+        rm -f ./test_emmc
+        print_result "EMMC_TEST" "FAIL" "eMMC 寫入測試超時"
+        return
+    elif [ $write_exit_code -ne 0 ]; then
+        echo -e "${RED}寫入測試失敗${NC}"
+        rm -f ./test_emmc
+        print_result "EMMC_TEST" "FAIL" "eMMC 寫入測試失敗"
+        return
+    fi
+
     echo -e "${BLUE}測試 eMMC 讀取性能...${NC}"
     local read_result
-    read_result=$(dd if=./test_emmc of=/dev/null bs=1M 2>&1)
-    local read_exit_code=$?
-    
+    local read_exit_code
+
+    # 讀取測試也加上超時
+    if command -v pv >/dev/null 2>&1; then
+        read_result=$(timeout $timeout_seconds dd if=./test_emmc bs=1M 2>/dev/null | pv -s ${test_size}M | dd of=/dev/null 2>&1)
+        read_exit_code=$?
+    else
+        echo -e "${BLUE}  正在讀取 ${test_size}MB 數據，請稍候...${NC}"
+        read_result=$(timeout $timeout_seconds dd if=./test_emmc of=/dev/null bs=1M status=progress 2>&1)
+        read_exit_code=$?
+    fi
+
     # Cleanup
     rm -f ./test_emmc
-    
-    if [ $write_exit_code -eq 0 ] && [ $read_exit_code -eq 0 ]; then
-        print_result "EMMC_TEST" "PASS" "eMMC 讀寫測試成功"
+
+    if [ $read_exit_code -eq 124 ]; then
+        print_result "EMMC_TEST" "FAIL" "eMMC 讀取測試超時"
+    elif [ $read_exit_code -ne 0 ]; then
+        print_result "EMMC_TEST" "FAIL" "eMMC 讀取測試失敗"
     else
-        print_result "EMMC_TEST" "FAIL" "eMMC 讀寫測試失敗"
+        # 提取速度信息
+        local write_speed=$(echo "$write_result" | grep -o '[0-9.]\+ [MG]B/s' | tail -1)
+        local read_speed=$(echo "$read_result" | grep -o '[0-9.]\+ [MG]B/s' | tail -1)
+        local details="寫入: ${write_speed:-N/A}, 讀取: ${read_speed:-N/A}"
+        print_result "EMMC_TEST" "PASS" "eMMC 讀寫測試成功 - $details"
     fi
 }
 
 test_usb_sdcard() {
     print_header "USB/SD卡 測試"
-    
+
     local devices_found=0
-    
+
     # Check for USB devices
     if [ -d "/media/user1/usb" ] && [ "$(ls -A /media/user1/usb 2>/dev/null)" ]; then
         echo -e "${BLUE}發現 USB 設備，測試讀寫...${NC}"
@@ -182,7 +224,7 @@ test_usb_sdcard() {
         fi
         devices_found=1
     fi
-    
+
     # Check for SD card
     if [ -d "/media/user1/sdcard" ] && [ "$(ls -A /media/user1/sdcard 2>/dev/null)" ]; then
         echo -e "${BLUE}發現 SD卡，測試讀寫...${NC}"
@@ -195,7 +237,7 @@ test_usb_sdcard() {
         fi
         devices_found=1
     fi
-    
+
     if [ $devices_found -eq 0 ]; then
         print_result "USB_SDCARD_TEST" "FAIL" "未發現 USB 或 SD卡 設備"
     fi
@@ -203,11 +245,11 @@ test_usb_sdcard() {
 
 test_uart() {
     print_header "UART 測試"
-    
+
     local uart_devices=("/dev/ttyS3" "/dev/ttyS4")
     local uart_test_result="PASS"
     local failed_uarts=()
-    
+
     for device in "${uart_devices[@]}"; do
         echo -e "${BLUE}測試 $device...${NC}"
         if command -v fltest_uarttest >/dev/null 2>&1; then
@@ -230,7 +272,7 @@ test_uart() {
 
 test_spi() {
     print_header "SPI 測試"
-    
+
     echo -e "${BLUE}測試 SPI 設備 /dev/spidev0.0...${NC}"
     if command -v fltest_spidev_test >/dev/null 2>&1; then
         local spi_output
@@ -247,7 +289,7 @@ test_spi() {
 
 test_i2c() {
     print_header "I2C 測試"
-    
+
     echo -e "${BLUE}測試 I2C 設備掃描...${NC}"
     if command -v i2cdetect >/dev/null 2>&1; then
         local i2c_output
@@ -264,12 +306,12 @@ test_i2c() {
 
 test_time() {
     print_header "時間系統測試"
-    
+
     echo -e "${BLUE}測試系統時間...${NC}"
     local current_date
     current_date=$(date)
     echo -e "${BLUE}當前系統時間: $current_date${NC}"
-    
+
     echo -e "${BLUE}同步硬體時鐘...${NC}"
     if hwclock -wu >/dev/null 2>&1; then
         local hw_time
@@ -286,20 +328,20 @@ test_time() {
 
 test_keys() {
     print_header "按鍵測試"
-    
+
     echo -e "${YELLOW}請按照以下順序測試按鍵：${NC}"
     echo -e "${BLUE}1. Recovery 按鈕${NC}"
     echo -e "${BLUE}2. 其他四個按鈕依序按下${NC}"
     echo -e "${YELLOW}測試將在 30 秒後開始，按 Ctrl+C 可提前結束${NC}"
-    
+
     if command -v fltest_keytest >/dev/null 2>&1; then
         echo -e "${BLUE}啟動按鍵測試程序...${NC}"
         local key_output
         key_output=$(timeout 30 fltest_keytest 2>&1)
-        
+
         local key_count
         key_count=$(echo "$key_output" | grep -c "Presse")
-        
+
         if [ "$key_count" -ge 5 ]; then
             print_result "KEY_TEST" "PASS" "檢測到 $key_count 個按鍵事件"
         else
@@ -320,9 +362,9 @@ main() {
     echo
     echo -e "${CYAN}測試日誌將保存到: $LOG_FILE${NC}"
     echo
-    
+
     log_message "QC Test Started"
-    
+
     # Run all tests
     test_network
     test_gpio
@@ -333,7 +375,7 @@ main() {
     test_i2c
     test_time
     test_keys
-    
+
     # Final summary
     echo -e "${CYAN}================================${NC}"
     echo -e "${WHITE}測試結果總結${NC}"
@@ -342,7 +384,7 @@ main() {
     echo -e "${GREEN}通過: $pass_count${NC}"
     echo -e "${RED}失敗: $fail_count${NC}"
     echo
-    
+
     if [ $fail_count -eq 0 ]; then
         echo -e "${GREEN}🎉 所有測試通過！設備 QC 測試成功！${NC}"
         log_message "All tests passed - QC SUCCESS"
@@ -356,7 +398,7 @@ main() {
         done
         log_message "QC FAILED - $fail_count tests failed"
     fi
-    
+
     echo
     echo -e "${CYAN}詳細日誌請查看: $LOG_FILE${NC}"
 }

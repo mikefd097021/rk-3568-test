@@ -7,7 +7,7 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+BLUE='\033[1;36m'    # 改為亮青色，更容易看清
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 WHITE='\033[1;37m'
@@ -85,7 +85,7 @@ echo -e "${CYAN}檢查 GPIO 系統...${NC}"
 if [ -d "/sys/class/gpio" ]; then
     echo -e "${GREEN}✓ GPIO 系統可用${NC}"
     echo -e "${BLUE}  路徑: /sys/class/gpio${NC}"
-    
+
     # Test GPIO export capability
     if [ -w "/sys/class/gpio/export" ]; then
         echo -e "${GREEN}✓ GPIO export 可寫${NC}"

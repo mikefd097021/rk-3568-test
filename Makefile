@@ -1,6 +1,6 @@
 # RK-3568 QC Test System Makefile
 
-.PHONY: all install check test clean help run quick-start
+.PHONY: all install check test clean help run quick-start quick
 
 # Default target - one-click run
 all: run
@@ -20,6 +20,19 @@ run:
 
 # Quick start alias
 quick-start: run
+
+# Quick test (fast mode)
+quick:
+	@echo "🚀 執行快速測試模式..."
+	@if [ ! -x run_qc.sh ]; then \
+		chmod +x run_qc.sh; \
+	fi
+	@if [ "$(shell id -u)" != "0" ]; then \
+		echo "需要 root 權限，正在請求 sudo..."; \
+		sudo bash run_qc.sh --quick; \
+	else \
+		bash run_qc.sh --quick; \
+	fi
 
 # Set executable permissions (legacy)
 install:
@@ -67,6 +80,7 @@ help:
 	@echo "🚀 推薦使用："
 	@echo "  make          - 一鍵執行完整 QC 測試 (等同於 make run)"
 	@echo "  make run      - 一鍵執行完整 QC 測試"
+	@echo "  make quick    - 快速測試模式 (減少測試時間)"
 	@echo ""
 	@echo "🔧 其他命令："
 	@echo "  make check    - 只檢查測試環境"

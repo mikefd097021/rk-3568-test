@@ -7,7 +7,7 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+BLUE='\033[1;36m'    # 改為亮青色，更容易看清
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 WHITE='\033[1;37m'
@@ -28,7 +28,7 @@ check_root() {
     if [ "$EUID" -ne 0 ]; then
         echo -e "${YELLOW}需要 root 權限來執行 QC 測試...${NC}"
         echo -e "${BLUE}正在請求 sudo 權限...${NC}"
-        
+
         # Re-run script with sudo
         exec sudo bash "$0" "$@"
     fi
@@ -38,53 +38,53 @@ check_root() {
 # Function to auto-setup permissions
 setup_permissions() {
     echo -e "${CYAN}自動設置執行權限...${NC}"
-    
+
     # Set execute permissions for all scripts
     chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null
-    
+
     # Set GPIO permissions if available
     if [ -d "/sys/class/gpio" ]; then
         chmod 666 /sys/class/gpio/export 2>/dev/null
         chmod 666 /sys/class/gpio/unexport 2>/dev/null
         echo -e "${GREEN}✓ GPIO 權限設置完成${NC}"
     fi
-    
+
     echo -e "${GREEN}✓ 權限設置完成${NC}"
 }
 
 # Function to install missing dependencies
 install_dependencies() {
     echo -e "${CYAN}檢查並安裝必要依賴...${NC}"
-    
+
     # Check if apt is available
     if command -v apt >/dev/null 2>&1; then
         # Update package list quietly
         apt update >/dev/null 2>&1
-        
+
         # Install basic tools if missing
         local packages_to_install=""
-        
+
         if ! command -v ping >/dev/null 2>&1; then
             packages_to_install="$packages_to_install iputils-ping"
         fi
-        
+
         if ! command -v i2cdetect >/dev/null 2>&1; then
             packages_to_install="$packages_to_install i2c-tools"
         fi
-        
+
         if [ -n "$packages_to_install" ]; then
             echo -e "${BLUE}安裝缺失的軟體包: $packages_to_install${NC}"
             apt install -y $packages_to_install >/dev/null 2>&1
         fi
     fi
-    
+
     echo -e "${GREEN}✓ 依賴檢查完成${NC}"
 }
 
 # Function to setup network interfaces
 setup_network() {
     echo -e "${CYAN}自動配置網路介面...${NC}"
-    
+
     # Configure eth0 if exists
     if ip link show eth0 >/dev/null 2>&1; then
         ip link set eth0 up 2>/dev/null
@@ -94,7 +94,7 @@ setup_network() {
         fi
         echo -e "${GREEN}✓ eth0 配置完成${NC}"
     fi
-    
+
     # Configure eth1 if exists
     if ip link show eth1 >/dev/null 2>&1; then
         ip link set eth1 up 2>/dev/null
@@ -109,11 +109,11 @@ setup_network() {
 # Function to setup mount points
 setup_mount_points() {
     echo -e "${CYAN}設置存儲掛載點...${NC}"
-    
+
     # Create mount directories
     mkdir -p /media/user1/usb 2>/dev/null
     mkdir -p /media/user1/sdcard 2>/dev/null
-    
+
     # Auto-mount USB devices
     for device in /dev/sd[a-z]1; do
         if [ -b "$device" ]; then
@@ -121,7 +121,7 @@ setup_mount_points() {
             echo -e "${GREEN}✓ USB 設備已掛載: $device${NC}" && break
         fi
     done
-    
+
     # Auto-mount SD card
     for device in /dev/mmcblk[0-9]p1; do
         if [ -b "$device" ] && [[ "$device" != *"mmcblk0"* ]]; then
@@ -129,14 +129,14 @@ setup_mount_points() {
             echo -e "${GREEN}✓ SD卡已掛載: $device${NC}" && break
         fi
     done
-    
+
     echo -e "${GREEN}✓ 掛載點設置完成${NC}"
 }
 
 # Function to find and setup test tools
 setup_test_tools() {
     echo -e "${CYAN}查找測試工具...${NC}"
-    
+
     # Common paths for test tools
     local tool_paths=(
         "/usr/local/bin"
@@ -145,10 +145,10 @@ setup_test_tools() {
         "$SCRIPT_DIR"
         "$SCRIPT_DIR/tools"
     )
-    
+
     # Test tools to find
     local tools=("fltest_uarttest" "fltest_spidev_test" "fltest_keytest")
-    
+
     for tool in "${tools[@]}"; do
         local found=false
         for path in "${tool_paths[@]}"; do
@@ -162,7 +162,7 @@ setup_test_tools() {
                 break
             fi
         done
-        
+
         if [ "$found" = false ]; then
             echo -e "${YELLOW}⚠ 未找到 $tool，相關測試可能失敗${NC}"
         fi
@@ -192,7 +192,7 @@ EOF
 # Function to run environment check
 run_environment_check() {
     echo -e "${CYAN}執行環境檢查...${NC}"
-    
+
     if [ -f "$SCRIPT_DIR/check_environment.sh" ]; then
         bash "$SCRIPT_DIR/check_environment.sh" | grep -E "(✓|✗|⚠)" | head -10
     else
@@ -206,7 +206,7 @@ run_qc_test() {
     echo -e "${CYAN}================================${NC}"
     echo -e "${WHITE}開始執行 QC 測試${NC}"
     echo -e "${CYAN}================================${NC}"
-    
+
     if [ -f "$SCRIPT_DIR/qc_test.sh" ]; then
         bash "$SCRIPT_DIR/qc_test.sh"
     else
@@ -224,6 +224,7 @@ show_usage() {
     echo -e "${WHITE}  --check-only    只執行環境檢查${NC}"
     echo -e "${WHITE}  --setup-only    只執行環境設置${NC}"
     echo -e "${WHITE}  --test-only     只執行 QC 測試${NC}"
+    echo -e "${WHITE}  --quick         執行快速測試 (減少測試時間)${NC}"
     echo -e "${WHITE}  --help          顯示此幫助${NC}"
     echo
     echo -e "${CYAN}預設行為：執行完整的設置和測試流程${NC}"
@@ -234,7 +235,8 @@ main() {
     local check_only=false
     local setup_only=false
     local test_only=false
-    
+    local quick_test=false
+
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -250,6 +252,10 @@ main() {
                 test_only=true
                 shift
                 ;;
+            --quick)
+                quick_test=true
+                shift
+                ;;
             --help)
                 show_usage
                 exit 0
@@ -261,14 +267,25 @@ main() {
                 ;;
         esac
     done
-    
+
     # Check root privileges
     check_root "$@"
-    
+
     echo -e "${BLUE}工作目錄: $SCRIPT_DIR${NC}"
     echo
-    
-    if [ "$test_only" = true ]; then
+
+    if [ "$quick_test" = true ]; then
+        # Run quick test
+        setup_permissions
+        echo -e "${CYAN}執行快速測試模式...${NC}"
+        echo
+        if [ -f "$SCRIPT_DIR/qc_test_quick.sh" ]; then
+            bash "$SCRIPT_DIR/qc_test_quick.sh"
+        else
+            echo -e "${RED}❌ 快速測試腳本不存在: $SCRIPT_DIR/qc_test_quick.sh${NC}"
+            exit 1
+        fi
+    elif [ "$test_only" = true ]; then
         # Only run QC test
         run_qc_test
     elif [ "$check_only" = true ]; then
@@ -287,7 +304,7 @@ main() {
         # Full workflow
         echo -e "${CYAN}執行完整的一鍵設置和測試流程...${NC}"
         echo
-        
+
         # Setup phase
         setup_permissions
         install_dependencies
@@ -295,14 +312,14 @@ main() {
         setup_mount_points
         setup_test_tools
         create_shortcut
-        
+
         echo
         echo -e "${GREEN}✓ 環境設置完成${NC}"
         echo
-        
+
         # Quick environment check
         run_environment_check
-        
+
         # Ask user if they want to proceed
         echo -e "${YELLOW}是否立即開始 QC 測試？ (y/n): ${NC}"
         read -r response
