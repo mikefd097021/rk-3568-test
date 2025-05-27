@@ -137,34 +137,41 @@ setup_mount_points() {
 setup_test_tools() {
     echo -e "${CYAN}查找測試工具...${NC}"
 
-    # Common paths for test tools
-    local tool_paths=(
-        "/usr/local/bin"
-        "/opt/forlinx/bin"
-        "/home/user1"
-        "$SCRIPT_DIR"
-        "$SCRIPT_DIR/tools"
-    )
-
     # Test tools to find
     local tools=("fltest_uarttest" "fltest_spidev_test" "fltest_keytest")
 
     for tool in "${tools[@]}"; do
-        local found=false
-        for path in "${tool_paths[@]}"; do
-            if [ -x "$path/$tool" ]; then
-                # Add to PATH if not already there
-                if [[ ":$PATH:" != *":$path:"* ]]; then
-                    export PATH="$path:$PATH"
-                fi
-                echo -e "${GREEN}✓ 找到 $tool 於 $path${NC}"
-                found=true
-                break
-            fi
-        done
+        # 首先使用 which 命令檢查工具是否在 PATH 中
+        if which "$tool" >/dev/null 2>&1; then
+            local tool_path=$(which "$tool")
+            echo -e "${GREEN}✓ 找到 $tool 於 $tool_path${NC}"
+        else
+            # 如果 which 找不到，再檢查特定路徑
+            local found=false
+            local tool_paths=(
+                "/usr/bin"
+                "/usr/local/bin"
+                "/opt/forlinx/bin"
+                "/home/user1"
+                "$SCRIPT_DIR"
+                "$SCRIPT_DIR/tools"
+            )
 
-        if [ "$found" = false ]; then
-            echo -e "${YELLOW}⚠ 未找到 $tool，相關測試可能失敗${NC}"
+            for path in "${tool_paths[@]}"; do
+                if [ -x "$path/$tool" ]; then
+                    # Add to PATH if not already there
+                    if [[ ":$PATH:" != *":$path:"* ]]; then
+                        export PATH="$path:$PATH"
+                    fi
+                    echo -e "${GREEN}✓ 找到 $tool 於 $path${NC}"
+                    found=true
+                    break
+                fi
+            done
+
+            if [ "$found" = false ]; then
+                echo -e "${YELLOW}⚠ 未找到 $tool，相關測試可能失敗${NC}"
+            fi
         fi
     done
 }

@@ -222,6 +222,18 @@ cat /sys/class/backlight/*/max_brightness
 find /sys -name "*brightness*" 2>/dev/null
 ```
 
+#### 6. 測試工具誤判問題
+```bash
+# 問題：顯示 "未找到 fltest_uarttest" 但實際存在
+# 檢查工具是否真的存在
+which fltest_uarttest
+which fltest_spidev_test
+which fltest_keytest
+
+# 如果工具存在但仍顯示未找到，可能是路徑問題
+# 解決方案：v1.3 版本已修復此問題
+```
+
 ### 日誌分析
 ```bash
 # 查看最新測試日誌

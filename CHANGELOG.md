@@ -84,13 +84,22 @@ test_lcd_quick() {
   - 與用戶記憶中的使用習慣一致
   - 輸出更清晰易懂
 
+#### 2. 測試工具查找邏輯優化
+- **問題修復**：`run_qc.sh` 中的工具查找誤判問題
+- **原因**：原本只檢查特定路徑列表，遺漏了 `/usr/bin` 等標準路徑
+- **解決方案**：
+  - 優先使用 `which` 命令檢查工具是否在 PATH 中
+  - 如果 `which` 找不到，再檢查特定路徑列表
+  - 添加 `/usr/bin` 到檢查路徑列表
+- **效果**：正確識別已安裝在標準路徑的測試工具
+
 ### 📁 文件變更清單
 
 #### 修改文件
 - `qc_test.sh` - 添加 `test_lcd()` 函數和測試調用，更新工具檢查為 `which`
 - `qc_test_quick.sh` - 添加 `test_lcd_quick()` 函數和測試調用
 - `check_environment.sh` - 添加 LCD 背光系統檢查，更新工具檢查為 `which`
-- `run_qc.sh` - 更新依賴檢查為 `which`
+- `run_qc.sh` - 更新依賴檢查為 `which`，修復工具查找邏輯
 - `README_QC.md` - 更新測試項目和硬體要求
 - `README_SIMPLE.md` - 更新測試項目表格
 - `START_HERE.md` - 添加 LCD 測試到概覽
