@@ -33,6 +33,13 @@ cat /sys/class/gpio/gpio<gpioID>value
 
 echo gpioID > /sys/class/gpio/unexport
 
+# lcd
+## 測試方式
+    進入測試前把亮度調到最大,接著將亮度減半,詢問測試人員lcd是否變暗,然後再調亮,在詢問一次後統計狀態
+
+## 相關控制與參數
+echo 200 > /sys/class/backlight/lvds-backlight/brightness
+echo 255 > /sys/class/backlight/lvds-backlight/brightness
 
 # emmc
 

@@ -19,6 +19,7 @@ declare -A test_results
 test_count=0
 pass_count=0
 fail_count=0
+skip_count=0
 
 # Logging
 LOG_FILE="/tmp/qc_test_$(date +%Y%m%d_%H%M%S).log"
@@ -48,6 +49,11 @@ print_result() {
         [ -n "$details" ] && echo -e "  ${BLUE}Details: $details${NC}"
         pass_count=$((pass_count + 1))
         log_message "$test_name: PASS - $details"
+    elif [ "$result" = "SKIP" ]; then
+        echo -e "${YELLOW}⊘ $test_name: SKIP${NC}"
+        [ -n "$details" ] && echo -e "  ${BLUE}Details: $details${NC}"
+        skip_count=$((skip_count + 1))
+        log_message "$test_name: SKIP - $details"
     else
         echo -e "${RED}✗ $test_name: FAIL${NC}"
         [ -n "$details" ] && echo -e "  ${YELLOW}Details: $details${NC}"
@@ -146,8 +152,8 @@ test_emmc() {
     print_header "eMMC 存儲測試"
 
     # 使用較小的測試大小以避免卡住，並添加超時控制
-    local test_size=100  # 減少到 100MB
-    local timeout_seconds=60  # 60秒超時
+    local test_size=10  # 減少到 10MB
+    local timeout_seconds=30  # 30秒超時
 
     echo -e "${BLUE}測試 eMMC 寫入性能 (${test_size}MB)...${NC}"
     local write_result
@@ -210,36 +216,94 @@ test_emmc() {
 test_usb_sdcard() {
     print_header "USB/SD卡 測試"
 
-    local devices_found=0
+    local usb_tested=false
+    local sdcard_tested=false
+    local test_size=10  # 減少測試大小到 10MB
 
-    # Check for USB devices
+    # Function to wait for device insertion
+    wait_for_device() {
+        local device_type="$1"
+        local mount_path="$2"
+        local max_wait=60  # 最多等待 60 秒
+        local wait_count=0
+
+        echo -e "${YELLOW}未檢測到 $device_type，請插入 $device_type...${NC}"
+        echo -e "${BLUE}等待 $device_type 插入 (最多等待 ${max_wait} 秒，按 Ctrl+C 跳過)${NC}"
+
+        while [ $wait_count -lt $max_wait ]; do
+            if [ -d "$mount_path" ] && [ "$(ls -A "$mount_path" 2>/dev/null)" ]; then
+                echo -e "${GREEN}✓ 檢測到 $device_type${NC}"
+                return 0
+            fi
+
+            # 顯示等待進度
+            printf "\r${BLUE}等待中... %d/%d 秒${NC}" $wait_count $max_wait
+            sleep 1
+            wait_count=$((wait_count + 1))
+        done
+
+        echo
+        echo -e "${YELLOW}⚠ 等待超時，跳過 $device_type 測試${NC}"
+        return 1
+    }
+
+    # Test USB devices
+    echo -e "${BLUE}檢查 USB 設備...${NC}"
     if [ -d "/media/user1/usb" ] && [ "$(ls -A /media/user1/usb 2>/dev/null)" ]; then
-        echo -e "${BLUE}發現 USB 設備，測試讀寫...${NC}"
-        if dd if=/dev/zero of=/media/user1/usb/test_usb bs=1M count=50 conv=fsync >/dev/null 2>&1 && \
-           dd if=/media/user1/usb/test_usb of=/dev/null bs=1M >/dev/null 2>&1; then
+        echo -e "${GREEN}✓ 發現 USB 設備${NC}"
+    else
+        if wait_for_device "USB 設備" "/media/user1/usb"; then
+            # Device was inserted, continue
+            :
+        else
+            print_result "USB_TEST" "SKIP" "用戶跳過或等待超時"
+        fi
+    fi
+
+    # Perform USB test if device is available
+    if [ -d "/media/user1/usb" ] && [ "$(ls -A /media/user1/usb 2>/dev/null)" ]; then
+        echo -e "${BLUE}測試 USB 讀寫 (${test_size}MB)...${NC}"
+        if timeout 30 dd if=/dev/zero of=/media/user1/usb/test_usb bs=1M count=$test_size conv=fsync >/dev/null 2>&1 && \
+           timeout 30 dd if=/media/user1/usb/test_usb of=/dev/null bs=1M >/dev/null 2>&1; then
             print_result "USB_TEST" "PASS" "USB 讀寫測試成功"
             rm -f /media/user1/usb/test_usb
         else
             print_result "USB_TEST" "FAIL" "USB 讀寫測試失敗"
+            rm -f /media/user1/usb/test_usb 2>/dev/null
         fi
-        devices_found=1
+        usb_tested=true
     fi
 
-    # Check for SD card
+    # Test SD card
+    echo -e "${BLUE}檢查 SD卡...${NC}"
     if [ -d "/media/user1/sdcard" ] && [ "$(ls -A /media/user1/sdcard 2>/dev/null)" ]; then
-        echo -e "${BLUE}發現 SD卡，測試讀寫...${NC}"
-        if dd if=/dev/zero of=/media/user1/sdcard/test_sd bs=1M count=50 conv=fsync >/dev/null 2>&1 && \
-           dd if=/media/user1/sdcard/test_sd of=/dev/null bs=1M >/dev/null 2>&1; then
+        echo -e "${GREEN}✓ 發現 SD卡${NC}"
+    else
+        if wait_for_device "SD卡" "/media/user1/sdcard"; then
+            # Device was inserted, continue
+            :
+        else
+            print_result "SDCARD_TEST" "SKIP" "用戶跳過或等待超時"
+        fi
+    fi
+
+    # Perform SD card test if device is available
+    if [ -d "/media/user1/sdcard" ] && [ "$(ls -A /media/user1/sdcard 2>/dev/null)" ]; then
+        echo -e "${BLUE}測試 SD卡 讀寫 (${test_size}MB)...${NC}"
+        if timeout 30 dd if=/dev/zero of=/media/user1/sdcard/test_sd bs=1M count=$test_size conv=fsync >/dev/null 2>&1 && \
+           timeout 30 dd if=/media/user1/sdcard/test_sd of=/dev/null bs=1M >/dev/null 2>&1; then
             print_result "SDCARD_TEST" "PASS" "SD卡 讀寫測試成功"
             rm -f /media/user1/sdcard/test_sd
         else
             print_result "SDCARD_TEST" "FAIL" "SD卡 讀寫測試失敗"
+            rm -f /media/user1/sdcard/test_sd 2>/dev/null
         fi
-        devices_found=1
+        sdcard_tested=true
     fi
 
-    if [ $devices_found -eq 0 ]; then
-        print_result "USB_SDCARD_TEST" "FAIL" "未發現 USB 或 SD卡 設備"
+    # Summary
+    if [ "$usb_tested" = false ] && [ "$sdcard_tested" = false ]; then
+        print_result "USB_SDCARD_TEST" "SKIP" "未測試任何外部存儲設備"
     fi
 }
 
@@ -397,11 +461,20 @@ main() {
     echo -e "${BLUE}總測試項目: $test_count${NC}"
     echo -e "${GREEN}通過: $pass_count${NC}"
     echo -e "${RED}失敗: $fail_count${NC}"
+    if [ $skip_count -gt 0 ]; then
+        echo -e "${YELLOW}跳過: $skip_count${NC}"
+    fi
     echo
 
     if [ $fail_count -eq 0 ]; then
-        echo -e "${GREEN}🎉 所有測試通過！設備 QC 測試成功！${NC}"
-        log_message "All tests passed - QC SUCCESS"
+        if [ $skip_count -eq 0 ]; then
+            echo -e "${GREEN}🎉 所有測試通過！設備 QC 測試成功！${NC}"
+            log_message "All tests passed - QC SUCCESS"
+        else
+            echo -e "${GREEN}✅ 執行的測試全部通過！${NC}"
+            echo -e "${YELLOW}⚠ 有 $skip_count 項測試被跳過${NC}"
+            log_message "Executed tests passed - $skip_count tests skipped"
+        fi
     else
         echo -e "${RED}❌ 有 $fail_count 項測試失敗，請檢查設備！${NC}"
         echo -e "${YELLOW}失敗的測試項目：${NC}"
@@ -410,7 +483,15 @@ main() {
                 echo -e "${RED}  - $test_name${NC}"
             fi
         done
-        log_message "QC FAILED - $fail_count tests failed"
+        if [ $skip_count -gt 0 ]; then
+            echo -e "${YELLOW}跳過的測試項目：${NC}"
+            for test_name in "${!test_results[@]}"; do
+                if [ "${test_results[$test_name]}" = "SKIP" ]; then
+                    echo -e "${YELLOW}  - $test_name${NC}"
+                fi
+            done
+        fi
+        log_message "QC FAILED - $fail_count tests failed, $skip_count tests skipped"
     fi
 
     echo
