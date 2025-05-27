@@ -121,7 +121,7 @@ hwclock --show
 
 # key
 ## 測試方式
-    啟動後請測試人員由recovery按鈕開始依序按下五個按鈕,收到如下回應表示正常,自動判定成功或失敗
+    啟動後請測試人員由recovery按鈕開始依序按下4個按鈕,收到如下回應表示正常,自動判定成功或失敗
 
 ## 相關控制與參數
 root@mpc:/home/user1# fltest_keytest
@@ -133,7 +133,5 @@ key114 Presse
 key114 Released
 key139 Presse
 key139 Released
-key158 Presse
-key158 Released
 
 
