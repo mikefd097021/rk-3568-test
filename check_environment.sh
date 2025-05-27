@@ -49,7 +49,7 @@ commands=(
 for cmd_info in "${commands[@]}"; do
     cmd="${cmd_info%%:*}"
     desc="${cmd_info##*:}"
-    if command -v "$cmd" >/dev/null 2>&1; then
+    if which "$cmd" >/dev/null 2>&1; then
         echo -e "${GREEN}✓ $cmd ($desc)${NC}"
     else
         echo -e "${RED}✗ $cmd ($desc) - 未找到${NC}"
@@ -70,7 +70,7 @@ test_tools=(
 for tool_info in "${test_tools[@]}"; do
     tool="${tool_info%%:*}"
     desc="${tool_info##*:}"
-    if command -v "$tool" >/dev/null 2>&1; then
+    if which "$tool" >/dev/null 2>&1; then
         echo -e "${GREEN}✓ $tool ($desc)${NC}"
         echo -e "${BLUE}  路徑: $(which "$tool")${NC}"
     else
@@ -94,6 +94,42 @@ if [ -d "/sys/class/gpio" ]; then
     fi
 else
     echo -e "${RED}✗ GPIO 系統不可用${NC}"
+fi
+echo
+
+# Check LCD backlight system
+echo -e "${CYAN}檢查 LCD 背光系統...${NC}"
+backlight_path="/sys/class/backlight/lvds-backlight/brightness"
+max_brightness_path="/sys/class/backlight/lvds-backlight/max_brightness"
+
+if [ -f "$backlight_path" ]; then
+    echo -e "${GREEN}✓ LCD 背光控制可用${NC}"
+    echo -e "${BLUE}  亮度控制: $backlight_path${NC}"
+
+    # Check if writable
+    if [ -w "$backlight_path" ]; then
+        echo -e "${GREEN}✓ 背光控制可寫${NC}"
+    else
+        echo -e "${RED}✗ 背光控制不可寫${NC}"
+    fi
+
+    # Show current and max brightness
+    if [ -f "$max_brightness_path" ]; then
+        current_brightness=$(cat "$backlight_path" 2>/dev/null)
+        max_brightness=$(cat "$max_brightness_path" 2>/dev/null)
+        echo -e "${BLUE}  當前亮度: $current_brightness / $max_brightness${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠ LCD 背光控制不可用${NC}"
+    echo -e "${BLUE}  檢查路徑: /sys/class/backlight/*/brightness${NC}"
+    # Try to find alternative backlight paths
+    backlight_dirs=$(find /sys/class/backlight -name "brightness" 2>/dev/null | head -3)
+    if [ -n "$backlight_dirs" ]; then
+        echo -e "${BLUE}  找到的背光控制:${NC}"
+        echo "$backlight_dirs" | while read -r path; do
+            echo -e "${BLUE}    $path${NC}"
+        done
+    fi
 fi
 echo
 
@@ -196,11 +232,11 @@ if [ "$EUID" -ne 0 ]; then
     critical_issues=$((critical_issues + 1))
 fi
 
-if ! command -v ping >/dev/null 2>&1; then
+if ! which ping >/dev/null 2>&1; then
     critical_issues=$((critical_issues + 1))
 fi
 
-if ! command -v dd >/dev/null 2>&1; then
+if ! which dd >/dev/null 2>&1; then
     critical_issues=$((critical_issues + 1))
 fi
 
@@ -209,19 +245,19 @@ if [ ! -d "/sys/class/gpio" ]; then
 fi
 
 # Check warnings
-if ! command -v fltest_uarttest >/dev/null 2>&1; then
+if ! which fltest_uarttest >/dev/null 2>&1; then
     warnings=$((warnings + 1))
 fi
 
-if ! command -v fltest_spidev_test >/dev/null 2>&1; then
+if ! which fltest_spidev_test >/dev/null 2>&1; then
     warnings=$((warnings + 1))
 fi
 
-if ! command -v fltest_keytest >/dev/null 2>&1; then
+if ! which fltest_keytest >/dev/null 2>&1; then
     warnings=$((warnings + 1))
 fi
 
-if ! command -v i2cdetect >/dev/null 2>&1; then
+if ! which i2cdetect >/dev/null 2>&1; then
     warnings=$((warnings + 1))
 fi
 

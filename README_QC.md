@@ -8,13 +8,14 @@
 ### 🔧 測試項目
 1. **網路連線測試** - 自動測試 eth0/eth1 網路介面
 2. **GPIO 測試** - 互動式測試 GPIO 輸出功能
-3. **eMMC 存儲測試** - 自動測試內部存儲讀寫性能
-4. **USB/SD卡測試** - 自動檢測並測試外部存儲設備
-5. **UART 測試** - 測試串口通訊功能
-6. **SPI 測試** - 測試 SPI 介面
-7. **I2C 測試** - 測試 I2C 設備掃描
-8. **時間系統測試** - 測試系統時間與硬體時鐘同步
-9. **按鍵測試** - 互動式測試硬體按鍵
+3. **LCD 背光測試** - 互動式測試 LCD 背光亮度控制
+4. **eMMC 存儲測試** - 自動測試內部存儲讀寫性能
+5. **USB/SD卡測試** - 自動檢測並測試外部存儲設備
+6. **UART 測試** - 測試串口通訊功能
+7. **SPI 測試** - 測試 SPI 介面
+8. **I2C 測試** - 測試 I2C 設備掃描
+9. **時間系統測試** - 測試系統時間與硬體時鐘同步
+10. **按鍵測試** - 互動式測試硬體按鍵
 
 ### 🎨 視覺特色
 - **彩色輸出** - 清楚區分成功/失敗狀態
@@ -28,6 +29,7 @@
 - RK-3568 開發板
 - 網路連線 (eth0/eth1)
 - GPIO 測試用 LED 或指示燈
+- LCD 顯示器 (支援背光控制)
 - USB 設備或 SD 卡 (可選)
 
 ### 軟體要求
@@ -47,7 +49,10 @@
 chmod +x qc_test.sh
 
 # 檢查必要工具是否存在
-which fltest_uarttest fltest_spidev_test fltest_keytest i2cdetect
+which fltest_uarttest
+which fltest_spidev_test
+which fltest_keytest
+which i2cdetect
 ```
 
 ### 2. 執行測試
@@ -58,7 +63,7 @@ sudo ./qc_test.sh
 
 ### 3. 測試流程
 1. **自動測試項目** - 網路、eMMC、USB/SD卡、UART、SPI、I2C、時間
-2. **互動測試項目** - GPIO、按鍵測試需要人工確認
+2. **互動測試項目** - GPIO、LCD 背光、按鍵測試需要人工確認
 3. **結果確認** - 每個測試完成後立即顯示結果
 4. **最終報告** - 所有測試完成後顯示統計摘要
 
@@ -106,6 +111,14 @@ ls /sys/class/gpio/
 # 解決：檢查網路配置和連線
 ip addr show eth0
 ip addr show eth1
+```
+
+#### 5. LCD 背光測試失敗
+```bash
+# 錯誤：背光控制文件不存在
+# 解決：檢查背光系統是否啟用
+ls /sys/class/backlight/
+cat /sys/class/backlight/*/brightness
 ```
 
 ### 測試工具安裝

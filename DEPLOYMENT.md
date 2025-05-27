@@ -93,7 +93,7 @@ sudo apt install -y build-essential
 ```bash
 # 檢查測試工具
 which fltest_uarttest
-which fltest_spidev_test  
+which fltest_spidev_test
 which fltest_keytest
 
 # 如果不存在，請聯繫硬體供應商或檢查以下路徑：
@@ -117,6 +117,7 @@ sudo chmod 666 /sys/class/gpio/unexport
 ### 1. 硬體連接檢查
 - ✅ 網路線連接到 eth0 和 eth1
 - ✅ GPIO 測試用 LED 或指示燈已連接
+- ✅ LCD 顯示器已連接並支援背光控制
 - ✅ UART 測試設備已連接 (如果需要)
 - ✅ SPI 測試設備已連接 (如果需要)
 - ✅ I2C 設備已連接 (如果需要)
@@ -143,7 +144,7 @@ sudo mkdir -p /media/user1/sdcard
 # 掛載 USB 設備 (示例)
 sudo mount /dev/sda1 /media/user1/usb
 
-# 掛載 SD 卡 (示例)  
+# 掛載 SD 卡 (示例)
 sudo mount /dev/mmcblk1p1 /media/user1/sdcard
 ```
 
@@ -207,6 +208,18 @@ sudo chmod 666 /sys/class/gpio/unexport
 ip addr show
 ip route show
 ping -c 1 192.168.8.1
+```
+
+#### 5. LCD 背光測試失敗
+```bash
+# 錯誤：背光控制文件不存在
+# 檢查背光系統
+ls /sys/class/backlight/
+cat /sys/class/backlight/*/brightness
+cat /sys/class/backlight/*/max_brightness
+
+# 如果路徑不同，修改腳本中的路徑
+find /sys -name "*brightness*" 2>/dev/null
 ```
 
 ### 日誌分析

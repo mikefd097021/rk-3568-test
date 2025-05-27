@@ -57,18 +57,18 @@ install_dependencies() {
     echo -e "${CYAN}檢查並安裝必要依賴...${NC}"
 
     # Check if apt is available
-    if command -v apt >/dev/null 2>&1; then
+    if which apt >/dev/null 2>&1; then
         # Update package list quietly
         apt update >/dev/null 2>&1
 
         # Install basic tools if missing
         local packages_to_install=""
 
-        if ! command -v ping >/dev/null 2>&1; then
+        if ! which ping >/dev/null 2>&1; then
             packages_to_install="$packages_to_install iputils-ping"
         fi
 
-        if ! command -v i2cdetect >/dev/null 2>&1; then
+        if ! which i2cdetect >/dev/null 2>&1; then
             packages_to_install="$packages_to_install i2c-tools"
         fi
 

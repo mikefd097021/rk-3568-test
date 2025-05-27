@@ -76,6 +76,7 @@ sudo bash run_qc.sh --test-only
 |------|------|----------|
 | 🌐 網路 | 測試 eth0/eth1 連線 | 無 |
 | 🔌 GPIO | 測試 GPIO 輸出 | 需確認 LED 亮滅 |
+| 🖥️ LCD | 測試 LCD 背光控制 | 需確認亮度變化 |
 | 💾 eMMC | 測試內部存儲 (10MB) | 無 |
 | 🔌 USB/SD | 測試外部存儲 (10MB) | 需插入設備 |
 | 📡 UART | 測試串口通訊 | 無 |

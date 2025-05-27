@@ -160,7 +160,7 @@ test_emmc() {
     local write_exit_code
 
     # 使用 timeout 命令防止卡住，並顯示進度
-    if command -v pv >/dev/null 2>&1; then
+    if which pv >/dev/null 2>&1; then
         # 如果有 pv 命令，顯示進度條
         write_result=$(timeout $timeout_seconds dd if=/dev/zero bs=1M count=$test_size 2>/dev/null | pv -s ${test_size}M | dd of=./test_emmc conv=fsync 2>&1)
         write_exit_code=$?
@@ -188,7 +188,7 @@ test_emmc() {
     local read_exit_code
 
     # 讀取測試也加上超時
-    if command -v pv >/dev/null 2>&1; then
+    if which pv >/dev/null 2>&1; then
         read_result=$(timeout $timeout_seconds dd if=./test_emmc bs=1M 2>/dev/null | pv -s ${test_size}M | dd of=/dev/null 2>&1)
         read_exit_code=$?
     else
@@ -316,7 +316,7 @@ test_uart() {
 
     for device in "${uart_devices[@]}"; do
         echo -e "${BLUE}測試 $device...${NC}"
-        if command -v fltest_uarttest >/dev/null 2>&1; then
+        if which fltest_uarttest >/dev/null 2>&1; then
             local uart_output
             uart_output=$(timeout 10 fltest_uarttest -d "$device" 2>&1)
             if echo "$uart_output" | grep -q "forlinx_uart_test.1234567890"; then
@@ -338,7 +338,7 @@ test_spi() {
     print_header "SPI 測試"
 
     echo -e "${BLUE}測試 SPI 設備 /dev/spidev0.0...${NC}"
-    if command -v fltest_spidev_test >/dev/null 2>&1; then
+    if which fltest_spidev_test >/dev/null 2>&1; then
         local spi_output
         spi_output=$(timeout 10 fltest_spidev_test -D /dev/spidev0.0 2>&1)
         if echo "$spi_output" | grep -q "spi mode:" && echo "$spi_output" | grep -q "bits per word:"; then
@@ -355,7 +355,7 @@ test_i2c() {
     print_header "I2C 測試"
 
     echo -e "${BLUE}測試 I2C 設備掃描...${NC}"
-    if command -v i2cdetect >/dev/null 2>&1; then
+    if which i2cdetect >/dev/null 2>&1; then
         local i2c_output
         i2c_output=$(i2cdetect -y 1 2>&1)
         if echo "$i2c_output" | grep -q "0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f"; then
@@ -390,6 +390,92 @@ test_time() {
     fi
 }
 
+test_lcd() {
+    print_header "LCD 背光測試"
+
+    local backlight_path="/sys/class/backlight/lvds-backlight/brightness"
+    local max_brightness_path="/sys/class/backlight/lvds-backlight/max_brightness"
+
+    # 檢查背光控制文件是否存在
+    if [ ! -f "$backlight_path" ]; then
+        print_result "LCD_TEST" "FAIL" "背光控制文件不存在: $backlight_path"
+        return
+    fi
+
+    echo -e "${BLUE}開始 LCD 背光測試...${NC}"
+
+    # 獲取最大亮度值
+    local max_brightness
+    if [ -f "$max_brightness_path" ]; then
+        max_brightness=$(cat "$max_brightness_path" 2>/dev/null)
+        echo -e "${BLUE}最大亮度值: $max_brightness${NC}"
+    else
+        max_brightness=255  # 預設值
+        echo -e "${YELLOW}使用預設最大亮度值: $max_brightness${NC}"
+    fi
+
+    # 保存當前亮度
+    local original_brightness
+    original_brightness=$(cat "$backlight_path" 2>/dev/null)
+    echo -e "${BLUE}當前亮度: $original_brightness${NC}"
+
+    # 步驟1: 設置最大亮度
+    echo -e "${BLUE}設置亮度到最大值 ($max_brightness)...${NC}"
+    if echo "$max_brightness" > "$backlight_path" 2>/dev/null; then
+        echo -e "${GREEN}✓ 亮度已設置到最大${NC}"
+        sleep 2  # 等待亮度變化
+    else
+        print_result "LCD_TEST" "FAIL" "無法設置最大亮度"
+        return
+    fi
+
+    # 步驟2: 減半亮度
+    local half_brightness=$((max_brightness / 2))
+    echo -e "${BLUE}設置亮度到一半 ($half_brightness)...${NC}"
+    if echo "$half_brightness" > "$backlight_path" 2>/dev/null; then
+        echo -e "${GREEN}✓ 亮度已減半${NC}"
+        sleep 2  # 等待亮度變化
+
+        # 詢問用戶是否看到變暗
+        if ask_user "LCD 螢幕是否變暗了？"; then
+            echo -e "${GREEN}✓ LCD 變暗測試通過${NC}"
+        else
+            # 恢復原始亮度
+            echo "$original_brightness" > "$backlight_path" 2>/dev/null
+            print_result "LCD_TEST" "FAIL" "用戶確認 LCD 未變暗"
+            return
+        fi
+    else
+        # 恢復原始亮度
+        echo "$original_brightness" > "$backlight_path" 2>/dev/null
+        print_result "LCD_TEST" "FAIL" "無法設置一半亮度"
+        return
+    fi
+
+    # 步驟3: 再次調亮
+    echo -e "${BLUE}重新設置亮度到最大值...${NC}"
+    if echo "$max_brightness" > "$backlight_path" 2>/dev/null; then
+        echo -e "${GREEN}✓ 亮度已調回最大${NC}"
+        sleep 2  # 等待亮度變化
+
+        # 詢問用戶是否看到變亮
+        if ask_user "LCD 螢幕是否重新變亮了？"; then
+            echo -e "${GREEN}✓ LCD 變亮測試通過${NC}"
+            # 恢復原始亮度
+            echo "$original_brightness" > "$backlight_path" 2>/dev/null
+            print_result "LCD_TEST" "PASS" "LCD 背光控制正常，亮度變化測試通過"
+        else
+            # 恢復原始亮度
+            echo "$original_brightness" > "$backlight_path" 2>/dev/null
+            print_result "LCD_TEST" "FAIL" "用戶確認 LCD 未重新變亮"
+        fi
+    else
+        # 恢復原始亮度
+        echo "$original_brightness" > "$backlight_path" 2>/dev/null
+        print_result "LCD_TEST" "FAIL" "無法重新設置最大亮度"
+    fi
+}
+
 test_keys() {
     print_header "按鍵測試"
 
@@ -399,7 +485,7 @@ test_keys() {
     echo -e "${BLUE}總共 4 個按鈕需要測試${NC}"
     echo -e "${YELLOW}測試將在 30 秒內進行，按 Ctrl+C 可提前結束${NC}"
 
-    if command -v fltest_keytest >/dev/null 2>&1; then
+    if which fltest_keytest >/dev/null 2>&1; then
         echo -e "${BLUE}啟動按鍵測試程序...${NC}"
         echo -e "${BLUE}請依序按下 4 個按鍵 (包含 Recovery 按鈕)${NC}"
         local key_output
@@ -446,6 +532,7 @@ main() {
     # Run all tests
     test_network
     test_gpio
+    test_lcd
     test_emmc
     test_usb_sdcard
     test_uart
