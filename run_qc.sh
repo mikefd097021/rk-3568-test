@@ -216,8 +216,11 @@ run_qc_test() {
 
     if [ -f "$SCRIPT_DIR/qc_test.sh" ]; then
         bash "$SCRIPT_DIR/qc_test.sh"
+        echo
+        echo -e "${GREEN}QC 測試執行完成${NC}"
     else
         echo -e "${RED}❌ QC 測試腳本不存在: $SCRIPT_DIR/qc_test.sh${NC}"
+        read -p "按 Enter 鍵關閉程序..."
         exit 1
     fi
 }
@@ -288,8 +291,11 @@ main() {
         echo
         if [ -f "$SCRIPT_DIR/qc_test_quick.sh" ]; then
             bash "$SCRIPT_DIR/qc_test_quick.sh"
+            echo
+            echo -e "${GREEN}快速測試執行完成${NC}"
         else
             echo -e "${RED}❌ 快速測試腳本不存在: $SCRIPT_DIR/qc_test_quick.sh${NC}"
+            read -p "按 Enter 鍵關閉程序..."
             exit 1
         fi
     elif [ "$test_only" = true ]; then
@@ -298,6 +304,8 @@ main() {
     elif [ "$check_only" = true ]; then
         # Only run environment check
         run_environment_check
+        echo
+        read -p "按 Enter 鍵關閉程序..."
     elif [ "$setup_only" = true ]; then
         # Only run setup
         setup_permissions
@@ -307,6 +315,8 @@ main() {
         setup_test_tools
         create_shortcut
         echo -e "${GREEN}🎉 環境設置完成！${NC}"
+        echo
+        read -p "按 Enter 鍵關閉程序..."
     else
         # Full workflow
         echo -e "${CYAN}執行完整的一鍵設置和測試流程...${NC}"

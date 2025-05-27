@@ -298,6 +298,12 @@ main() {
     echo
     echo -e "${CYAN}詳細日誌: $LOG_FILE${NC}"
     echo -e "${BLUE}執行完整測試: sudo bash qc_test.sh${NC}"
+    echo
+    echo -e "${YELLOW}======================================${NC}"
+    echo -e "${YELLOW}  快速測試完成，請確認上述結果  ${NC}"
+    echo -e "${YELLOW}======================================${NC}"
+    echo
+    read -p "按 Enter 鍵關閉測試程序..."
 }
 
 # Check if running as root

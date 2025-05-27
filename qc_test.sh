@@ -583,6 +583,12 @@ main() {
 
     echo
     echo -e "${CYAN}詳細日誌請查看: $LOG_FILE${NC}"
+    echo
+    echo -e "${YELLOW}======================================${NC}"
+    echo -e "${YELLOW}  QC 測試完成，請確認上述結果  ${NC}"
+    echo -e "${YELLOW}======================================${NC}"
+    echo
+    read -p "按 Enter 鍵關閉測試程序..."
 }
 
 # Check if running as root
