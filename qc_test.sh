@@ -224,7 +224,7 @@ test_usb_sdcard() {
     wait_for_device() {
         local device_type="$1"
         local mount_path="$2"
-        local max_wait=60  # 最多等待 60 秒
+        local max_wait=10  # 最多等待 10 秒
         local wait_count=0
 
         echo -e "${YELLOW}未檢測到 $device_type，請插入 $device_type...${NC}"
@@ -356,13 +356,39 @@ test_i2c() {
 
     echo -e "${BLUE}測試 I2C 設備掃描...${NC}"
     if which i2cdetect >/dev/null 2>&1; then
-        local i2c_output
-        i2c_output=$(i2cdetect -y 1 2>&1)
-        if echo "$i2c_output" | grep -q "0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f"; then
+        local i2c_output=""
+        local max_wait=10  # 最多等待 10 秒
+        local wait_count=0
+        local scan_result=1
+        
+        # 使用倒數計時顯示
+        while [ $wait_count -lt $max_wait ]; do
+            # 顯示等待進度
+            printf "\r${BLUE}掃描中... %d/%d 秒${NC}" $wait_count $max_wait
+            
+            # 非阻塞方式執行 i2cdetect 命令 (背景執行)
+            timeout 1 i2cdetect -y 1 > /tmp/i2c_result.tmp 2>&1 &
+            sleep 1
+            wait_count=$((wait_count + 1))
+            
+            # 檢查結果
+            if grep -q "0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f" /tmp/i2c_result.tmp 2>/dev/null; then
+                i2c_output=$(cat /tmp/i2c_result.tmp)
+                scan_result=0
+                break
+            fi
+        done
+        
+        echo  # 換行，結束倒計時顯示
+        
+        if [ $scan_result -eq 0 ]; then
             print_result "I2C_TEST" "PASS" "I2C 掃描成功"
         else
-            print_result "I2C_TEST" "FAIL" "I2C 掃描失敗"
+            print_result "I2C_TEST" "FAIL" "I2C 掃描超時（${max_wait}秒）或失敗"
         fi
+        
+        # 清理臨時文件
+        rm -f /tmp/i2c_result.tmp
     else
         print_result "I2C_TEST" "FAIL" "i2cdetect 命令不存在"
     fi

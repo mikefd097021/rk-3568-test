@@ -28,6 +28,7 @@ check_root() {
     if [ "$EUID" -ne 0 ]; then
         echo -e "${YELLOW}需要 root 權限來執行 QC 測試...${NC}"
         echo -e "${BLUE}正在請求 sudo 權限...${NC}"
+        echo -e "pwd:${YELLOW}fdtuser1${NC}"
 
         # Re-run script with sudo
         exec sudo bash "$0" "$@"
