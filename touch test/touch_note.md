@@ -1,6 +1,9 @@
 sudo apt update
+
 sudo apt install python3-pip -y
+
 sudo python3 -m pip install --upgrade pip setuptools
+
 sudo apt install python3-tk -y
 
 
@@ -44,3 +47,13 @@ chmod +x ~/.local/share/applications/myapp.desktop
 
 cp ~/.local/share/applications/myapp.desktop ~/Desktop/
 chmod +x ~/Desktop/myapp.desktop
+
+
+# kernel6
+pip uninstall fdttest
+
+pip install build
+
+python3 -m build
+
+pip install dist/fdttest-1.0-py3-none-any.whl
