@@ -209,7 +209,7 @@ run_environment_check() {
     echo -e "${CYAN}執行環境檢查...${NC}"
 
     if [ -f "$SCRIPT_DIR/check_environment.sh" ]; then
-        bash "$SCRIPT_DIR/check_environment.sh"
+        bash "$SCRIPT_DIR/check_environment.sh" | grep -E "(✓|✗|⚠)" | head -10
     else
         echo -e "${YELLOW}⚠ 環境檢查腳本不存在${NC}"
     fi
@@ -346,17 +346,17 @@ main() {
         # run_environment_check
 
         # Ask user if they want to proceed
-        echo -e "${YELLOW}是否立即開始 QC 測試？ (y/n): ${NC}"
-        read -r response
-        case "$response" in
-            [Yy]|[Yy][Ee][Ss]|"")
-                run_qc_test
-                ;;
-            *)
-                echo -e "${BLUE}測試已取消。您可以稍後執行：${NC}"
-                echo -e "${WHITE}  sudo bash $SCRIPT_DIR/run_qc.sh --test-only${NC}"
-                ;;
-        esac
+        # echo -e "${YELLOW}是否立即開始 QC 測試？ (y/n): ${NC}"
+        # read -r response
+        # case "$response" in
+        #     [Yy]|[Yy][Ee][Ss]|"")
+        #         run_qc_test
+        #         ;;
+        #     *)
+        #         echo -e "${BLUE}測試已取消。您可以稍後執行：${NC}"
+        #         echo -e "${WHITE}  sudo bash $SCRIPT_DIR/run_qc.sh --test-only${NC}"
+        #         ;;
+        # esac
     fi
 }
 
