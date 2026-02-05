@@ -342,6 +342,7 @@ main() {
         echo -e "${GREEN}✓ 環境設置完成${NC}"
         echo
 
+        run_qc_test
         # Quick environment check
         # run_environment_check
 
