@@ -25,6 +25,14 @@ skip_count=0
 LOG_FILE="/tmp/qc_test_$(date +%Y%m%d_%H%M%S).log"
 
 # Helper functions
+reset_results() {
+    test_results=()
+    test_count=0
+    pass_count=0
+    fail_count=0
+    skip_count=0
+}
+
 log_message() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
 }
@@ -534,93 +542,101 @@ test_keys() {
 
 # Main execution
 main() {
-    clear
-    echo -e "${PURPLE}╔══════════════════════════════════════╗${NC}"
-    echo -e "${PURPLE}║        RK-3568 QC 測試系統          ║${NC}"
-    echo -e "${PURPLE}║            版本 1.1                  ║${NC}"
-    echo -e "${PURPLE}╚══════════════════════════════════════╝${NC}"
-    echo
-    echo -e "${CYAN}測試項目選單：${NC}"
-    echo -e "  ${WHITE}0. 執行全部測試${NC}"
-    echo -e "  ${WHITE}1. 網路 eth0 測試${NC}"
-    echo -e "  ${WHITE}2. 網路 eth1 測試${NC}"
-    echo -e "  ${WHITE}3. GPIO 測試${NC}"
-    echo -e "  ${WHITE}4. LCD 背光測試${NC}"
-    echo -e "  ${WHITE}5. eMMC 存儲測試${NC}"
-    echo -e "  ${WHITE}6. USB 設備測試${NC}"
-    echo -e "  ${WHITE}7. SD卡 測試${NC}"
-    echo -e "  ${WHITE}8. UART ttyS3 測試${NC}"
-    echo -e "  ${WHITE}9. UART ttyS4 測試${NC}"
-    echo -e "  ${WHITE}10. SPI 測試${NC}"
-    echo -e "  ${WHITE}11. I2C 測試${NC}"
-    echo -e "  ${WHITE}12. 時間系統測試${NC}"
-    echo -e "  ${WHITE}13. 按鍵測試${NC}"
-    echo
-    read -p "請選擇測試項目 (0-13): " choice
+    while true; do
+        reset_results
+        clear
+        echo -e "${PURPLE}╔══════════════════════════════════════╗${NC}"
+        echo -e "${PURPLE}║        RK-3568 QC 測試系統          ║${NC}"
+        echo -e "${PURPLE}║            版本 1.1                  ║${NC}"
+        echo -e "${PURPLE}╚══════════════════════════════════════╝${NC}"
+        echo
+        echo -e "${CYAN}測試項目選單：${NC}"
+        echo -e "  ${WHITE}0. 執行全部測試${NC}"
+        echo -e "  ${WHITE}1. 網路 eth0 測試${NC}"
+        echo -e "  ${WHITE}2. 網路 eth1 測試${NC}"
+        echo -e "  ${WHITE}3. GPIO 測試${NC}"
+        echo -e "  ${WHITE}4. LCD 背光測試${NC}"
+        echo -e "  ${WHITE}5. eMMC 存儲測試${NC}"
+        echo -e "  ${WHITE}6. USB 設備測試${NC}"
+        echo -e "  ${WHITE}7. SD卡 測試${NC}"
+        echo -e "  ${WHITE}8. UART ttyS3 測試${NC}"
+        echo -e "  ${WHITE}9. UART ttyS4 測試${NC}"
+        echo -e "  ${WHITE}10. SPI 測試${NC}"
+        echo -e "  ${WHITE}11. I2C 測試${NC}"
+        echo -e "  ${WHITE}12. 時間系統測試${NC}"
+        echo -e "  ${WHITE}13. 按鍵測試${NC}"
+        echo
+        read -p "請選擇測試項目 (0-13): " choice
 
-    log_message "QC Test Started - Choice: $choice"
+        log_message "QC Test Started - Choice: $choice"
 
-    case "$choice" in
-        0)
-            test_eth0
-            test_eth1
-            test_gpio
-            test_lcd
-            test_emmc
-            test_usb
-            test_sdcard
-            test_uart_ttyS3
-            test_uart_ttyS4
-            test_spi
-            test_i2c
-            test_time
-            test_keys
-            ;;
-        1) test_eth0 ;;
-        2) test_eth1 ;;
-        3) test_gpio ;;
-        4) test_lcd ;;
-        5) test_emmc ;;
-        6) test_usb ;;
-        7) test_sdcard ;;
-        8) test_uart_ttyS3 ;;
-        9) test_uart_ttyS4 ;;
-        10) test_spi ;;
-        11) test_i2c ;;
-        12) test_time ;;
-        13) test_keys ;;
-        *) echo -e "${RED}無效的選擇${NC}"; exit 1 ;;
-    esac
+        case "$choice" in
+            0)
+                test_eth0
+                test_eth1
+                test_gpio
+                test_lcd
+                test_emmc
+                test_usb
+                test_sdcard
+                test_uart_ttyS3
+                test_uart_ttyS4
+                test_spi
+                test_i2c
+                test_time
+                test_keys
+                ;;
+            1) test_eth0 ;;
+            2) test_eth1 ;;
+            3) test_gpio ;;
+            4) test_lcd ;;
+            5) test_emmc ;;
+            6) test_usb ;;
+            7) test_sdcard ;;
+            8) test_uart_ttyS3 ;;
+            9) test_uart_ttyS4 ;;
+            10) test_spi ;;
+            11) test_i2c ;;
+            12) test_time ;;
+            13) test_keys ;;
+            *) echo -e "${RED}無效的選擇${NC}"; continue ;;
+        esac
 
-    # Final summary
-    echo -e "${CYAN}================================${NC}"
-    echo -e "${WHITE}測試結果總結${NC}"
-    echo -e "${CYAN}================================${NC}"
-    echo -e "${BLUE}總測試項目: $test_count${NC}"
-    echo -e "${GREEN}通過: $pass_count${NC}"
-    echo -e "${RED}失敗: $fail_count${NC}"
-    if [ $skip_count -gt 0 ]; then
-        echo -e "${YELLOW}跳過: $skip_count${NC}"
-    fi
-    echo
-
-    if [ $fail_count -eq 0 ]; then
-        if [ $skip_count -eq 0 ]; then
-            echo -e "${GREEN}🎉 測試通過！${NC}"
-            log_message "QC SUCCESS"
-        else
-            echo -e "${GREEN}✅ 執行的測試通過！${NC}"
-            log_message "QC PARTIAL SUCCESS"
+        # Final summary
+        echo -e "${CYAN}================================${NC}"
+        echo -e "${WHITE}測試結果總結${NC}"
+        echo -e "${CYAN}================================${NC}"
+        echo -e "${BLUE}總測試項目: $test_count${NC}"
+        echo -e "${GREEN}通過: $pass_count${NC}"
+        echo -e "${RED}失敗: $fail_count${NC}"
+        if [ $skip_count -gt 0 ]; then
+            echo -e "${YELLOW}跳過: $skip_count${NC}"
         fi
-    else
-        echo -e "${RED}❌ 有測試項目失敗！${NC}"
-        log_message "QC FAILED"
-    fi
+        echo
 
-    echo
-    echo -e "${CYAN}詳細日誌請查看: $LOG_FILE${NC}"
-    echo
-    read -p "按 Enter 鍵關閉測試程序..."
+        if [ $fail_count -eq 0 ]; then
+            if [ $skip_count -eq 0 ]; then
+                echo -e "${GREEN}🎉 測試通過！${NC}"
+                log_message "QC SUCCESS"
+            else
+                echo -e "${GREEN}✅ 執行的測試通過！${NC}"
+                log_message "QC PARTIAL SUCCESS"
+            fi
+        else
+            echo -e "${RED}❌ 有測試項目失敗！${NC}"
+            log_message "QC FAILED"
+        fi
+
+        echo
+        echo -e "${CYAN}詳細日誌請查看: $LOG_FILE${NC}"
+        echo
+        echo -e "${YELLOW}輸入 'r' 回到測試選單，按其他任意鍵關閉測試程序...${NC}"
+        read -n 1 -r restart_choice
+        echo
+        if [[ ! "$restart_choice" =~ ^[Rr]$ ]]; then
+            break
+        fi
+    done
 }
 
 # Check if running as root
