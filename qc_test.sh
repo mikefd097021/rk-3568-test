@@ -503,40 +503,69 @@ test_lcd() {
 test_keys() {
     print_header "按鍵測試"
 
-    echo -e "${YELLOW}請按照以下順序測試按鍵：${NC}"
-    echo -e "${BLUE}1. Recovery 按鈕${NC}"
-    echo -e "${BLUE}2. 其他 3 個按鈕依序按下${NC}"
-    echo -e "${BLUE}總共 4 個按鈕需要測試${NC}"
-    echo -e "${YELLOW}測試將在 30 秒內進行，按 Ctrl+C 可提前結束${NC}"
+    local target_keys=("114" "115" "139" "158")
+    local found_114=false
+    local found_115=false
+    local found_139=false
+    local found_158=false
+    local found_count=0
 
-    if which fltest_keytest >/dev/null 2>&1; then
-        echo -e "${BLUE}啟動按鍵測試程序...${NC}"
-        echo -e "${BLUE}請依序按下 4 個按鍵 (包含 Recovery 按鈕)${NC}"
-        local key_output
-        key_output=$(timeout 30 fltest_keytest 2>&1)
+    echo -e "${YELLOW}請在 30 秒內按下以下 4 個按鍵：${NC}"
+    echo -e "${BLUE}- 114 (音量減)${NC}"
+    echo -e "${BLUE}- 115 (音量加)${NC}"
+    echo -e "${BLUE}- 139 (選單)${NC}"
+    echo -e "${BLUE}- 158 (返回/Recovery)${NC}"
+    echo
+    echo -e "${CYAN}等待按鍵輸入 (限時 30 秒)...${NC}"
 
-        # 計算按鍵事件數量
-        local key_count
-        key_count=$(echo "$key_output" | grep -c "Presse")
-
-        # 檢查是否有按鍵設備被檢測到
-        local device_detected
-        device_detected=$(echo "$key_output" | grep -c "adc-keys\|input")
-
-        echo -e "${BLUE}測試輸出：${NC}"
-        echo "$key_output" | head -10
-
-        # 根據實際情況調整判斷標準
-        # 如果檢測到至少 3 個按鍵事件且有設備檢測，認為測試通過
-        if [ "$key_count" -ge 3 ] && [ "$device_detected" -gt 0 ]; then
-            print_result "KEY_TEST" "PASS" "檢測到 $key_count 個按鍵事件，設備正常"
-        elif [ "$key_count" -gt 0 ]; then
-            print_result "KEY_TEST" "PASS" "檢測到 $key_count 個按鍵事件 (部分按鍵可能未測試)"
-        else
-            print_result "KEY_TEST" "FAIL" "未檢測到按鍵事件或設備異常"
-        fi
-    else
+    if ! which fltest_keytest >/dev/null 2>&1; then
         print_result "KEY_TEST" "FAIL" "fltest_keytest 命令不存在"
+        return
+    fi
+
+    # 啟動測試工具並即時解析輸出
+    # 使用進程替換來讀取輸出，以便在循環中即時處理
+    while read -r line; do
+        # 檢查每一行是否包含目標鍵碼
+        if [[ "$line" =~ "114" ]] && [ "$found_114" = false ]; then
+            found_114=true
+            found_count=$((found_count + 1))
+            echo -e "${GREEN}✓ 檢測到按鍵 114 ($found_count/4)${NC}"
+        fi
+        if [[ "$line" =~ "115" ]] && [ "$found_115" = false ]; then
+            found_115=true
+            found_count=$((found_count + 1))
+            echo -e "${GREEN}✓ 檢測到按鍵 115 ($found_count/4)${NC}"
+        fi
+        if [[ "$line" =~ "139" ]] && [ "$found_139" = false ]; then
+            found_139=true
+            found_count=$((found_count + 1))
+            echo -e "${GREEN}✓ 檢測到按鍵 139 ($found_count/4)${NC}"
+        fi
+        if [[ "$line" =~ "158" ]] && [ "$found_158" = false ]; then
+            found_158=true
+            found_count=$((found_count + 1))
+            echo -e "${GREEN}✓ 檢測到按鍵 158 ($found_count/4)${NC}"
+        fi
+
+        # 如果全部找到，提前結束
+        if [ "$found_count" -eq 4 ]; then
+            echo -e "${GREEN}🎉 已成功檢測到所有目標按鍵！${NC}"
+            # 殺掉測試工具進程
+            pkill -f fltest_keytest 2>/dev/null
+            break
+        fi
+    done < <(timeout 30 fltest_keytest 2>&1)
+
+    if [ "$found_count" -eq 4 ]; then
+        print_result "KEY_TEST" "PASS" "成功檢測到所有鍵碼: 114, 115, 139, 158"
+    else
+        local missing=""
+        [ "$found_114" = false ] && missing+="114 "
+        [ "$found_115" = false ] && missing+="115 "
+        [ "$found_139" = false ] && missing+="139 "
+        [ "$found_158" = false ] && missing+="158 "
+        print_result "KEY_TEST" "FAIL" "未完成測試。缺失鍵碼: $missing"
     fi
 }
 
