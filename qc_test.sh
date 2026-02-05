@@ -503,17 +503,17 @@ test_lcd() {
 test_keys() {
     print_header "按鍵測試"
 
-    local found_114=false
-    local found_115=false
-    local found_139=false
-    local found_158=false
+    local found_114=false # 音量減
+    local found_115=false # 音量加
+    local found_139=false # 選單
+    local found_158=false # 返回/Recovery
     local found_count=0
     local duration=30
     local start_time=$(date +%s)
     local end_time=$((start_time + duration))
 
     echo -e "${YELLOW}請在倒計時結束前按下以下 4 個按鍵：${NC}"
-    echo -e "${BLUE}- 114 (音量減), 115 (音量加), 139 (選單), 158 (返回/Recovery)${NC}"
+    echo -e "${BLUE}- btn1 (音量加), btn2 (音量減), btn3 (選單), btn4 (返回/Recovery)${NC}"
     echo
 
     if ! which fltest_keytest >/dev/null 2>&1; then
@@ -532,10 +532,10 @@ test_keys() {
         if [ $remaining -lt 0 ]; then
             printf "\r${RED}倒數計時:  0 秒 | 進度: %d/4 [ %s %s %s %s ]${NC}\n" \
                 $found_count \
-                "$([ "$found_114" = true ] && echo "114" || echo "---")" \
-                "$([ "$found_115" = true ] && echo "115" || echo "---")" \
-                "$([ "$found_139" = true ] && echo "139" || echo "---")" \
-                "$([ "$found_158" = true ] && echo "158" || echo "---")"
+                "$([ "$found_115" = true ] && echo "btn1" || echo "---")" \                
+                "$([ "$found_114" = true ] && echo "btn2" || echo "---")" \
+                "$([ "$found_139" = true ] && echo "btn3" || echo "---")" \
+                "$([ "$found_158" = true ] && echo "btn4" || echo "---")"
             echo -e "${RED}時間到！測試未完成。${NC}"
             break
         fi
@@ -543,10 +543,10 @@ test_keys() {
         # 顯示倒數計時與狀態面板
         printf "\r${YELLOW}倒數計時: %2d 秒 | 進度: %d/4 [ %s %s %s %s ]${NC}" \
             $remaining $found_count \
-            "$([ "$found_114" = true ] && echo "114" || echo "---")" \
-            "$([ "$found_115" = true ] && echo "115" || echo "---")" \
-            "$([ "$found_139" = true ] && echo "139" || echo "---")" \
-            "$([ "$found_158" = true ] && echo "158" || echo "---")"
+            "$([ "$found_115" = true ] && echo "btn1" || echo "---")" \
+            "$([ "$found_114" = true ] && echo "btn2" || echo "---")" \
+            "$([ "$found_139" = true ] && echo "btn3" || echo "---")" \
+            "$([ "$found_158" = true ] && echo "btn4" || echo "---")"
 
         # 非阻塞讀取工具輸出 (0.1秒超時)
         while read -t 0.1 -u 3 line; do
