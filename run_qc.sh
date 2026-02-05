@@ -209,7 +209,7 @@ run_environment_check() {
     echo -e "${CYAN}執行環境檢查...${NC}"
 
     if [ -f "$SCRIPT_DIR/check_environment.sh" ]; then
-        bash "$SCRIPT_DIR/check_environment.sh" | grep -E "(✓|✗|⚠)" | head -10
+        bash "$SCRIPT_DIR/check_environment.sh"
     else
         echo -e "${YELLOW}⚠ 環境檢查腳本不存在${NC}"
     fi
@@ -317,7 +317,7 @@ main() {
     elif [ "$setup_only" = true ]; then
         # Only run setup
         setup_permissions
-        install_dependencies
+        # install_dependencies
         setup_network
         setup_mount_points
         setup_test_tools
@@ -332,7 +332,7 @@ main() {
 
         # Setup phase
         setup_permissions
-        install_dependencies
+        # install_dependencies
         setup_network
         setup_mount_points
         setup_test_tools
@@ -343,7 +343,7 @@ main() {
         echo
 
         # Quick environment check
-        run_environment_check
+        # run_environment_check
 
         # Ask user if they want to proceed
         echo -e "${YELLOW}是否立即開始 QC 測試？ (y/n): ${NC}"
