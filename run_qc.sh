@@ -18,8 +18,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 echo -e "\n"
 echo -e "${PURPLE}╔══════════════════════════════════════╗${NC}"
-echo -e "${PURPLE}║     RK-3568 QC 一鍵測試系統         ║${NC}"
-echo -e "${PURPLE}║         自動化啟動程序               ║${NC}"
+echo -e "${PURPLE}║     RK-3568 QC 一鍵測試系統           ║${NC}"
+echo -e "${PURPLE}║         自動化啟動程序                ║${NC}"
+echo -e "${PURPLE}║         version 2.0                  ║${NC}"
 echo -e "${PURPLE}╚══════════════════════════════════════╝${NC}"
 echo
 
@@ -189,7 +190,7 @@ create_shortcut() {
     if [ -d "$desktop_dir" ]; then
         cat > "$desktop_dir/QC_Test.desktop" << EOF
 [Desktop Entry]
-Version=1.0
+Version=2.0
 Type=Application
 Name=RK-3568 QC Test
 Comment=一鍵 QC 測試

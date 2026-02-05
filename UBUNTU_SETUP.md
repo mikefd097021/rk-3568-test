@@ -15,7 +15,7 @@ sudo nano /usr/share/applications/make-runner.desktop
 內容：
 ```ini
 [Desktop Entry]
-Version=1.0
+Version=2.0
 Type=Application
 Name=Make Runner
 Comment=Run make command in terminal

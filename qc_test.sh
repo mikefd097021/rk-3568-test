@@ -2,7 +2,7 @@
 
 # RK-3568 QC Interactive Test Script
 # Author: Auto-generated QC Test Script
-# Version: 1.0
+# Version: 2.0
 
 # Color definitions
 RED='\033[0;31m'

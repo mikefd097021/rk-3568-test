@@ -24,7 +24,7 @@ nano ~/.local/share/applications/myapp.desktop
 寫入內容（依你的程式修改）：
 
 [Desktop Entry]
-Version=1.0
+Version=2.0
 Name=MyApp
 Comment=My Python Application
 Exec=/usr/bin/python3 /usr/local/bin/myapp   # 或直接填可執行檔路徑
