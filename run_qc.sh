@@ -18,9 +18,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 echo -e "\n"
 echo -e "${PURPLE}╔══════════════════════════════════════╗${NC}"
-echo -e "${PURPLE}║     RK-3568 QC 一鍵測試系統        ║${NC}"
-echo -e "${PURPLE}║         自動化啟動程序             ║${NC}"
-echo -e "${PURPLE}║         version 2.0                  ║${NC}"
+echo -e "${PURPLE}║    RK-3568 QC One-Click System       ║${NC}"
+echo -e "${PURPLE}║       Automation Launcher            ║${NC}"
+echo -e "${PURPLE}║           Version 2.0                ║${NC}"
 echo -e "${PURPLE}╚══════════════════════════════════════╝${NC}"
 echo
 
@@ -317,7 +317,7 @@ main() {
     elif [ "$setup_only" = true ]; then
         # Only run setup
         setup_permissions
-        # install_dependencies
+        install_dependencies
         setup_network
         setup_mount_points
         setup_test_tools
@@ -332,7 +332,7 @@ main() {
 
         # Setup phase
         setup_permissions
-        # install_dependencies
+        install_dependencies
         setup_network
         setup_mount_points
         setup_test_tools

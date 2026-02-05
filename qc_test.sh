@@ -600,8 +600,8 @@ main() {
         reset_results
         clear
         echo -e "${PURPLE}╔══════════════════════════════════════╗${NC}"
-        echo -e "${PURPLE}║        RK-3568 QC 測試系統          ║${NC}"
-        echo -e "${PURPLE}║            版本 1.1                  ║${NC}"
+        echo -e "${PURPLE}║       RK-3568 QC Test System         ║${NC}"
+        echo -e "${PURPLE}║            Version 2.0               ║${NC}"
         echo -e "${PURPLE}╚══════════════════════════════════════╝${NC}"
         echo
         echo -e "${CYAN}測試項目選單：${NC}"
