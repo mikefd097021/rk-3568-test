@@ -503,60 +503,85 @@ test_lcd() {
 test_keys() {
     print_header "按鍵測試"
 
-    local target_keys=("114" "115" "139" "158")
     local found_114=false
     local found_115=false
     local found_139=false
     local found_158=false
     local found_count=0
+    local duration=30
+    local start_time=$(date +%s)
+    local end_time=$((start_time + duration))
 
-    echo -e "${YELLOW}請在 30 秒內按下以下 4 個按鍵：${NC}"
-    echo -e "${BLUE}- 114 (音量減)${NC}"
-    echo -e "${BLUE}- 115 (音量加)${NC}"
-    echo -e "${BLUE}- 139 (選單)${NC}"
-    echo -e "${BLUE}- 158 (返回/Recovery)${NC}"
+    echo -e "${YELLOW}請在倒計時結束前按下以下 4 個按鍵：${NC}"
+    echo -e "${BLUE}- 114 (音量減), 115 (音量加), 139 (選單), 158 (返回/Recovery)${NC}"
     echo
-    echo -e "${CYAN}等待按鍵輸入 (限時 30 秒)...${NC}"
 
     if ! which fltest_keytest >/dev/null 2>&1; then
         print_result "KEY_TEST" "FAIL" "fltest_keytest 命令不存在"
         return
     fi
 
-    # 啟動測試工具並即時解析輸出
-    # 使用進程替換來讀取輸出，以便在循環中即時處理
-    while read -r line; do
-        # 檢查每一行是否包含目標鍵碼
-        if [[ "$line" =~ "114" ]] && [ "$found_114" = false ]; then
-            found_114=true
-            found_count=$((found_count + 1))
-            echo -e "${GREEN}✓ 檢測到按鍵 114 ($found_count/4)${NC}"
-        fi
-        if [[ "$line" =~ "115" ]] && [ "$found_115" = false ]; then
-            found_115=true
-            found_count=$((found_count + 1))
-            echo -e "${GREEN}✓ 檢測到按鍵 115 ($found_count/4)${NC}"
-        fi
-        if [[ "$line" =~ "139" ]] && [ "$found_139" = false ]; then
-            found_139=true
-            found_count=$((found_count + 1))
-            echo -e "${GREEN}✓ 檢測到按鍵 139 ($found_count/4)${NC}"
-        fi
-        if [[ "$line" =~ "158" ]] && [ "$found_158" = false ]; then
-            found_158=true
-            found_count=$((found_count + 1))
-            echo -e "${GREEN}✓ 檢測到按鍵 158 ($found_count/4)${NC}"
-        fi
+    # 啟動測試工具並取得其輸出流 (使用文件描述符 3)
+    exec 3< <(fltest_keytest 2>&1)
+    local tool_pid=$!
 
-        # 如果全部找到，提前結束
-        if [ "$found_count" -eq 4 ]; then
-            echo -e "${GREEN}🎉 已成功檢測到所有目標按鍵！${NC}"
-            # 殺掉測試工具進程
-            pkill -f fltest_keytest 2>/dev/null
+    while true; do
+        local now=$(date +%s)
+        local remaining=$((end_time - now))
+
+        if [ $remaining -lt 0 ]; then
+            printf "\r${RED}倒數計時:  0 秒 | 進度: %d/4 [ %s %s %s %s ]${NC}\n" \
+                $found_count \
+                "$([ "$found_114" = true ] && echo "114" || echo "---")" \
+                "$([ "$found_115" = true ] && echo "115" || echo "---")" \
+                "$([ "$found_139" = true ] && echo "139" || echo "---")" \
+                "$([ "$found_158" = true ] && echo "158" || echo "---")"
+            echo -e "${RED}時間到！測試未完成。${NC}"
             break
         fi
-    done < <(timeout 30 fltest_keytest 2>&1)
 
+        # 顯示倒數計時與狀態面板
+        printf "\r${YELLOW}倒數計時: %2d 秒 | 進度: %d/4 [ %s %s %s %s ]${NC}" \
+            $remaining $found_count \
+            "$([ "$found_114" = true ] && echo "114" || echo "---")" \
+            "$([ "$found_115" = true ] && echo "115" || echo "---")" \
+            "$([ "$found_139" = true ] && echo "139" || echo "---")" \
+            "$([ "$found_158" = true ] && echo "158" || echo "---")"
+
+        # 非阻塞讀取工具輸出 (0.1秒超時)
+        while read -t 0.1 -u 3 line; do
+            if [[ "$line" =~ "114" ]] && [ "$found_114" = false ]; then
+                found_114=true
+                found_count=$((found_count + 1))
+            fi
+            if [[ "$line" =~ "115" ]] && [ "$found_115" = false ]; then
+                found_115=true
+                found_count=$((found_count + 1))
+            fi
+            if [[ "$line" =~ "139" ]] && [ "$found_139" = false ]; then
+                found_139=true
+                found_count=$((found_count + 1))
+            fi
+            if [[ "$line" =~ "158" ]] && [ "$found_158" = false ]; then
+                found_158=true
+                found_count=$((found_count + 1))
+            fi
+
+            # 如果集齊 4 個鍵，立即更新 UI 並跳出
+            if [ "$found_count" -eq 4 ]; then
+                printf "\r${GREEN}倒數計時: %2d 秒 | 進度: 4/4 [ 114 115 139 158 ]${NC}\n" $remaining
+                echo -e "${GREEN}🎉 已成功檢測到所有目標按鍵！${NC}"
+                break 2
+            fi
+        done
+    done
+
+    # 清理資源
+    pkill -P $tool_pid 2>/dev/null
+    kill $tool_pid 2>/dev/null
+    exec 3<&-
+
+    # 最終結果輸出
     if [ "$found_count" -eq 4 ]; then
         print_result "KEY_TEST" "PASS" "成功檢測到所有鍵碼: 114, 115, 139, 158"
     else
