@@ -27,30 +27,12 @@ echo
 check_root() {
     if [ "$EUID" -ne 0 ]; then
         echo -e "${YELLOW}正在自動獲取 root 權限...${NC}"
-        
-        # 建立臨時密碼腳本
-        local askpass_file="/tmp/.askpass_$(whoami)"
-        echo '#!/bin/bash' > "$askpass_file"
-        echo 'echo "fdtuser1"' >> "$askpass_file"
-        chmod +x "$askpass_file"
-        
-        # 使用 SUDO_ASKPASS 自動授權
-        export SUDO_ASKPASS="$askpass_file"
-        
-        # 預先驗證一次
-        if sudo -A -v > /dev/null 2>&1; then
-            echo -e "${GREEN}✓ 權限驗證成功${NC}"
-            # 清理臨時文件
-            rm -f "$askpass_file"
-            # 以 sudo 重新執行，此時因為 session 已驗證，不會再跳密碼
-            exec sudo "$0" "$@"
-        else
-            echo -e "${RED}✗ 自動獲取權限失敗，請手動輸入密碼${NC}"
-            rm -f "$askpass_file"
-            exec sudo "$0" "$@"
-        fi
+        # 使用管道將密碼傳給 sudo -S 並重新執行腳本
+        echo "fdtuser1" | sudo -S bash "$0" "$@"
         exit $?
     fi
+    # 重新將 stdin 導向 TTY，否則後續的 read 命令會讀到管道剩餘的內容而跳出
+    exec 0</dev/tty 2>/dev/null || true
     echo -e "${GREEN}✓ Root 權限確認${NC}"
 }
 
