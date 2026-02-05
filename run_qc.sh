@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 # Get script directory (works even when run from USB)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
-
+echo -e "\n"
 echo -e "${PURPLE}╔══════════════════════════════════════╗${NC}"
 echo -e "${PURPLE}║     RK-3568 QC 一鍵測試系統         ║${NC}"
 echo -e "${PURPLE}║         自動化啟動程序               ║${NC}"
