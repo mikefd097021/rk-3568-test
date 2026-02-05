@@ -27,12 +27,26 @@ echo
 check_root() {
     if [ "$EUID" -ne 0 ]; then
         echo -e "${YELLOW}正在自動獲取 root 權限...${NC}"
-        # 使用 fdtuser1 密碼更新 sudo 快存，不重定向整個腳本的 stdin
-        if echo "fdtuser1" | sudo -S -v > /dev/null 2>&1; then
+        
+        # 建立臨時密碼腳本
+        local askpass_file="/tmp/.askpass_$(whoami)"
+        echo '#!/bin/bash' > "$askpass_file"
+        echo 'echo "fdtuser1"' >> "$askpass_file"
+        chmod +x "$askpass_file"
+        
+        # 使用 SUDO_ASKPASS 自動授權
+        export SUDO_ASKPASS="$askpass_file"
+        
+        # 預先驗證一次
+        if sudo -A -v > /dev/null 2>&1; then
             echo -e "${GREEN}✓ 權限驗證成功${NC}"
+            # 清理臨時文件
+            rm -f "$askpass_file"
+            # 以 sudo 重新執行，此時因為 session 已驗證，不會再跳密碼
             exec sudo "$0" "$@"
         else
             echo -e "${RED}✗ 自動獲取權限失敗，請手動輸入密碼${NC}"
+            rm -f "$askpass_file"
             exec sudo "$0" "$@"
         fi
         exit $?
@@ -42,7 +56,13 @@ check_root() {
 
 # Function to auto-setup permissions
 setup_permissions() {
-    echo -e "${CYAN}自動設置執行權限...${NC}"
+    echo -e "${CYAN}自動設置執行權限與所有權...${NC}"
+
+    # 如果是 root 執行，將目錄所有權交還給 user1，方便桌面操作
+    if [ "$EUID" -eq 0 ]; then
+        chown -R user1:user1 "$SCRIPT_DIR" 2>/dev/null
+        echo -e "${GREEN}✓ 目錄所有權已更正為 user1${NC}"
+    fi
 
     # Set execute permissions for all scripts
     chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null

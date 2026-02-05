@@ -696,9 +696,17 @@ main() {
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
     echo -e "${YELLOW}正在自動獲取 root 權限...${NC}"
-    if echo "fdtuser1" | sudo -S -v > /dev/null 2>&1; then
+    askpass_file="/tmp/.askpass_$(whoami)"
+    echo '#!/bin/bash' > "$askpass_file"
+    echo 'echo "fdtuser1"' >> "$askpass_file"
+    chmod +x "$askpass_file"
+    export SUDO_ASKPASS="$askpass_file"
+    
+    if sudo -A -v > /dev/null 2>&1; then
+        rm -f "$askpass_file"
         exec sudo "$0" "$@"
     else
+        rm -f "$askpass_file"
         exec sudo "$0" "$@"
     fi
     exit $?
