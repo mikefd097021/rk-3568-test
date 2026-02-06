@@ -708,7 +708,7 @@ main() {
                 echo -e "${CYAN}正在清除資料...${NC}"
                 # 刪除桌面快捷方式 (可能存在的路徑)
                 rm -f /home/user1/Desktop/QC_Test.desktop 2>/dev/null
-                rm -f /home/user1/Desktop/rk-3568-test 2>/dev/null
+                rm -rf /home/user1/Desktop/rk-3568-test 2>/dev/null
                 # 獲取當前腳本所在的目錄 (假設它是 rk-3568-test)
                 local current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
                 # 執行刪除 (在背景執行以確保腳本能正常退出)
