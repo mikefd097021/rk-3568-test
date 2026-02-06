@@ -692,22 +692,23 @@ main() {
             continue
         elif [[ "$restart_choice" =~ ^[Dd]$ ]]; then
             echo -e "${RED}╔══════════════════════════════════════════════════════╗${NC}"
-            echo -e "${RED}║                ⚠️  危險操作警告  ⚠️                ║${NC}"
+            echo -e "${RED}║                ⚠️  DANGER WARNING  ⚠️                ║${NC}"
             echo -e "${RED}╠══════════════════════════════════════════════════════╣${NC}"
             echo -e "${RED}║                                                      ║${NC}"
-            echo -e "${RED}║  此操作將會：                                        ║${NC}"
-            echo -e "${RED}║  1. 永久刪除整個測試資料夾 (rk-3568-test)            ║${NC}"
-            echo -e "${RED}║  2. 刪除桌面上的 QC 測試快捷方式                     ║${NC}"
+            echo -e "${RED}║  This operation will:                                ║${NC}"
+            echo -e "${RED}║  1. PERMANENTLY delete the folder (rk-3568-test)     ║${NC}"
+            echo -e "${RED}║  2. Delete the QC Test desktop shortcut              ║${NC}"
             echo -e "${RED}║                                                      ║${NC}"
-            echo -e "${RED}║  ⚠️  注意：此操作無法復原！所有測試日誌也將被清除。  ║${NC}"
+            echo -e "${RED}║  ⚠️  CAUTION: This action CANNOT be undone!          ║${NC}"
+            echo -e "${RED}║  All test logs will be permanently removed.          ║${NC}"
             echo -e "${RED}║                                                      ║${NC}"
             echo -e "${RED}╚══════════════════════════════════════════════════════╝${NC}"
             echo
-            if ask_user "您確定要清除所有測試資料並退出嗎？"; then
+            if ask_user "Are you sure you want to clean all data and exit?"; then
                 echo -e "${CYAN}正在清除資料...${NC}"
                 # 刪除桌面快捷方式 (可能存在的路徑)
                 rm -f /home/user1/Desktop/QC_Test.desktop 2>/dev/null
-                rm -f /home/user1/Desktop/rk-3568-test/QC_Test.desktop 2>/dev/null
+                rm -f /home/user1/Desktop/rk-3568-test 2>/dev/null
                 # 獲取當前腳本所在的目錄 (假設它是 rk-3568-test)
                 local current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
                 # 執行刪除 (在背景執行以確保腳本能正常退出)
