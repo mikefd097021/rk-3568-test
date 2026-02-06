@@ -241,62 +241,53 @@ test_emmc() {
 # Helper for USB/SD wait
 wait_for_device() {
     local device_type="$1"
-    local dev_pattern="$2"
-    local max_wait=10  # 最多等待 10 秒
+    local target="$2"  # 可以是路徑或設備模式 (如 mmcblk1p[0-9])
+    local max_wait=10
     local wait_count=0
 
     echo -e "${YELLOW}未檢測到 $device_type，請插入 $device_type...${NC}"
-    echo -e "${BLUE}等待 $device_type 插入 (最多等待 ${max_wait} 秒，按 Ctrl+C 跳過)${NC}"
-
     while [ $wait_count -lt $max_wait ]; do
-        local mount_path=$(get_mount_point "$dev_pattern")
-        if [ -n "$mount_path" ] && [ -d "$mount_path" ]; then
-            echo -e "${GREEN}✓ 檢測到 $device_type 掛載於: $mount_path${NC}"
-            return 0
+        # 檢查是否為模式 (包含 [ 或 *) 還是直接的路徑
+        if [[ "$target" == *"["* ]]; then
+            local mount_path=$(get_mount_point "$target")
+            if [ -n "$mount_path" ] && [ -d "$mount_path" ]; then
+                echo -e "${GREEN}✓ 檢測到 $device_type 掛載於: $mount_path${NC}"
+                return 0
+            fi
+        else
+            if [ -d "$target" ] && [ "$(ls -A "$target" 2>/dev/null)" ]; then
+                echo -e "${GREEN}✓ 檢測到 $device_type${NC}"
+                return 0
+            fi
         fi
-
-        # 顯示等待進度
         printf "\r${BLUE}等待中... %d/%d 秒${NC}" $wait_count $max_wait
         sleep 1
         wait_count=$((wait_count + 1))
     done
-
-    echo
-    echo -e "${YELLOW}⚠ 等待超時，跳過 $device_type 測試${NC}"
+    echo -e "\n${YELLOW}⚠ 等待超時${NC}"
     return 1
 }
 
 test_usb() {
     print_header "USB 設備測試"
     local test_size=10
-    local usb_path=$(get_mount_point "sd[a-z][0-9]")
     
-    # 如果沒找到或不是目錄，進入等待
-    if [ -z "$usb_path" ] || [ ! -d "$usb_path" ]; then
-        wait_for_device "USB 設備" "sd[a-z][0-9]"
-        usb_path=$(get_mount_point "sd[a-z][0-9]")
+    if [ ! -d "/media/user1/usb" ] || [ ! "$(ls -A /media/user1/usb 2>/dev/null)" ]; then
+        wait_for_device "USB 設備" "/media/user1/usb"
     fi
 
-    if [ -n "$usb_path" ] && [ -d "$usb_path" ]; then
-        echo -e "${BLUE}偵測到 USB 掛載點: ${WHITE}$usb_path${NC}"
-        
-        # 檢查是否可寫
-        if [ ! -w "$usb_path" ]; then
-            echo -e "${YELLOW}警告: 掛載點 $usb_path 似乎為唯讀，嘗試重新掛載為讀寫...${NC}"
-            mount -o remount,rw "$usb_path" 2>/dev/null
-        fi
-
+    if [ -d "/media/user1/usb" ] && [ "$(ls -A /media/user1/usb 2>/dev/null)" ]; then
         echo -e "${BLUE}測試 USB 讀寫 (${test_size}MB)...${NC}"
-        if timeout 30 dd if=/dev/zero of="$usb_path/test_usb" bs=1M count=$test_size conv=fsync >/dev/null 2>&1 && \
-           timeout 30 dd if="$usb_path/test_usb" of=/dev/null bs=1M >/dev/null 2>&1; then
-            print_result "USB_TEST" "PASS" "USB 讀寫測試成功 ($usb_path)"
-            rm -f "$usb_path/test_usb"
+        if timeout 30 dd if=/dev/zero of=/media/user1/usb/test_usb bs=1M count=$test_size conv=fsync >/dev/null 2>&1 && \
+           timeout 30 dd if=/media/user1/usb/test_usb of=/dev/null bs=1M >/dev/null 2>&1; then
+            print_result "USB_TEST" "PASS" "USB 讀寫測試成功"
+            rm -f /media/user1/usb/test_usb
         else
-            print_result "USB_TEST" "FAIL" "USB 讀寫測試失敗，請檢查權限或磁碟狀態 ($usb_path)"
-            rm -f "$usb_path/test_usb" 2>/dev/null
+            print_result "USB_TEST" "FAIL" "USB 讀寫測試失敗"
+            rm -f /media/user1/usb/test_usb 2>/dev/null
         fi
     else
-        print_result "USB_TEST" "SKIP" "未檢測到 USB 設備掛載點"
+        print_result "USB_TEST" "SKIP" "未檢測到 USB 設備"
     fi
 }
 
