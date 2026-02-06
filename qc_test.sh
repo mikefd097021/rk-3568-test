@@ -594,6 +594,53 @@ test_keys() {
     fi
 }
 
+test_suspend_resume() {
+    print_header "休眠喚醒測試"
+
+    echo -e "${YELLOW}系統即將進入休眠模式...${NC}"
+    echo -e "${BLUE}請在系統進入休眠後，使用【觸控螢幕】進行喚醒測試。${NC}"
+    echo
+
+    # 倒數計時
+    for i in 3 2 1; do
+        echo -e "${RED}系統將在 $i 秒後休眠...${NC}"
+        sleep 1
+    done
+
+    echo -e "${PURPLE}執行休眠指令 (echo mem > /sys/power/state)...${NC}"
+    log_message "System entering suspend..."
+    
+    # 執行休眠
+    if echo mem > /sys/power/state 2>/dev/null; then
+        # 腳本執行到這裡表示系統已喚醒
+        echo
+        echo -e "${GREEN}系統已喚醒！${NC}"
+        log_message "System resumed from suspend."
+
+        if ask_user "休眠與喚醒過程是否正常？"; then
+            print_result "SUSPEND_RESUME" "PASS" "休眠與觸控喚醒測試通過"
+        else
+            print_result "SUSPEND_RESUME" "FAIL" "用戶回報休眠喚醒異常"
+        fi
+    else
+        # 嘗試使用 systemctl suspend 作為備案
+        if command -v systemctl >/dev/null 2>&1; then
+             echo -e "${YELLOW}嘗試使用 systemctl suspend...${NC}"
+             if systemctl suspend 2>/dev/null; then
+                echo
+                echo -e "${GREEN}系統已喚醒！${NC}"
+                if ask_user "休眠與喚醒過程是否正常？"; then
+                    print_result "SUSPEND_RESUME" "PASS" "休眠與觸控喚醒測試通過"
+                else
+                    print_result "SUSPEND_RESUME" "FAIL" "用戶回報休眠喚醒異常"
+                fi
+                return
+             fi
+        fi
+        print_result "SUSPEND_RESUME" "FAIL" "無法執行休眠指令，請檢查權限或系統支援"
+    fi
+}
+
 # Main execution
 main() {
     while true; do
@@ -619,8 +666,9 @@ main() {
         echo -e "  ${WHITE}11. I2C 測試${NC}"
         echo -e "  ${WHITE}12. 時間系統測試${NC}"
         echo -e "  ${WHITE}13. 按鍵測試${NC}"
+        echo -e "  ${WHITE}14. 休眠喚醒測試${NC}"
         echo
-        read -p "請選擇測試項目 (0-13): " choice
+        read -p "請選擇測試項目 (0-14): " choice
 
         log_message "QC Test Started - Choice: $choice"
 
@@ -639,6 +687,7 @@ main() {
                 test_i2c
                 test_time
                 test_keys
+                test_suspend_resume
                 ;;
             1) test_eth0 ;;
             2) test_eth1 ;;
@@ -653,6 +702,7 @@ main() {
             11) test_i2c ;;
             12) test_time ;;
             13) test_keys ;;
+            14) test_suspend_resume ;;
             *) echo -e "${RED}無效的選擇${NC}"; continue ;;
         esac
 
