@@ -250,7 +250,7 @@ wait_for_device() {
 
     while [ $wait_count -lt $max_wait ]; do
         local mount_path=$(get_mount_point "$dev_pattern")
-        if [ -n "$mount_path" ] && [ -d "$mount_path" ] && [ "$(ls -A "$mount_path" 2>/dev/null)" ]; then
+        if [ -n "$mount_path" ] && [ -d "$mount_path" ]; then
             echo -e "${GREEN}✓ 檢測到 $device_type 掛載於: $mount_path${NC}"
             return 0
         fi
@@ -269,54 +269,67 @@ wait_for_device() {
 test_usb() {
     print_header "USB 設備測試"
     local test_size=10
-    # 偵測任何 sdXN 的掛載點 (例如 sda1, sdb1)
     local usb_path=$(get_mount_point "sd[a-z][0-9]")
     
-    if [ -z "$usb_path" ] || [ ! -d "$usb_path" ] || [ ! "$(ls -A "$usb_path" 2>/dev/null)" ]; then
+    # 如果沒找到或不是目錄，進入等待
+    if [ -z "$usb_path" ] || [ ! -d "$usb_path" ]; then
         wait_for_device "USB 設備" "sd[a-z][0-9]"
         usb_path=$(get_mount_point "sd[a-z][0-9]")
     fi
 
-    if [ -n "$usb_path" ] && [ -d "$usb_path" ] && [ "$(ls -A "$usb_path" 2>/dev/null)" ]; then
-        echo -e "${BLUE}偵測到 USB 掛載點: $usb_path${NC}"
+    if [ -n "$usb_path" ] && [ -d "$usb_path" ]; then
+        echo -e "${BLUE}偵測到 USB 掛載點: ${WHITE}$usb_path${NC}"
+        
+        # 檢查是否可寫
+        if [ ! -w "$usb_path" ]; then
+            echo -e "${YELLOW}警告: 掛載點 $usb_path 似乎為唯讀，嘗試重新掛載為讀寫...${NC}"
+            mount -o remount,rw "$usb_path" 2>/dev/null
+        fi
+
         echo -e "${BLUE}測試 USB 讀寫 (${test_size}MB)...${NC}"
         if timeout 30 dd if=/dev/zero of="$usb_path/test_usb" bs=1M count=$test_size conv=fsync >/dev/null 2>&1 && \
            timeout 30 dd if="$usb_path/test_usb" of=/dev/null bs=1M >/dev/null 2>&1; then
             print_result "USB_TEST" "PASS" "USB 讀寫測試成功 ($usb_path)"
             rm -f "$usb_path/test_usb"
         else
-            print_result "USB_TEST" "FAIL" "USB 讀寫測試失敗 ($usb_path)"
+            print_result "USB_TEST" "FAIL" "USB 讀寫測試失敗，請檢查權限或磁碟狀態 ($usb_path)"
             rm -f "$usb_path/test_usb" 2>/dev/null
         fi
     else
-        print_result "USB_TEST" "SKIP" "未檢測到 USB 設備"
+        print_result "USB_TEST" "SKIP" "未檢測到 USB 設備掛載點"
     fi
 }
 
 test_sdcard() {
     print_header "SD卡 測試"
     local test_size=10
-    # 偵測 mmcblk1 的任何分區 (例如 mmcblk1p1, mmcblk1p6)
     local sd_path=$(get_mount_point "mmcblk1p[0-9]")
 
-    if [ -z "$sd_path" ] || [ ! -d "$sd_path" ] || [ ! "$(ls -A "$sd_path" 2>/dev/null)" ]; then
+    if [ -z "$sd_path" ] || [ ! -d "$sd_path" ]; then
         wait_for_device "SD卡" "mmcblk1p[0-9]"
         sd_path=$(get_mount_point "mmcblk1p[0-9]")
     fi
 
-    if [ -n "$sd_path" ] && [ -d "$sd_path" ] && [ "$(ls -A "$sd_path" 2>/dev/null)" ]; then
-        echo -e "${BLUE}偵測到 SD卡 掛載點: $sd_path${NC}"
+    if [ -n "$sd_path" ] && [ -d "$sd_path" ]; then
+        echo -e "${BLUE}偵測到 SD卡 掛載點: ${WHITE}$sd_path${NC}"
+        
+        # 檢查是否可寫
+        if [ ! -w "$sd_path" ]; then
+            echo -e "${YELLOW}警告: 掛載點 $sd_path 似乎為唯讀，嘗試重新掛載為讀寫...${NC}"
+            mount -o remount,rw "$sd_path" 2>/dev/null
+        fi
+
         echo -e "${BLUE}測試 SD卡 讀寫 (${test_size}MB)...${NC}"
         if timeout 30 dd if=/dev/zero of="$sd_path/test_sd" bs=1M count=$test_size conv=fsync >/dev/null 2>&1 && \
            timeout 30 dd if="$sd_path/test_sd" of=/dev/null bs=1M >/dev/null 2>&1; then
             print_result "SDCARD_TEST" "PASS" "SD卡 讀寫測試成功 ($sd_path)"
             rm -f "$sd_path/test_sd"
         else
-            print_result "SDCARD_TEST" "FAIL" "SD卡 讀寫測試失敗 ($sd_path)"
+            print_result "SDCARD_TEST" "FAIL" "SD卡 讀寫測試失敗，請檢查權限或磁碟狀態 ($sd_path)"
             rm -f "$sd_path/test_sd" 2>/dev/null
         fi
     else
-        print_result "SDCARD_TEST" "SKIP" "未檢測到 SD卡 設備"
+        print_result "SDCARD_TEST" "SKIP" "未檢測到 SD卡 設備掛載點"
     fi
 }
 
