@@ -607,11 +607,11 @@ test_suspend_resume() {
         sleep 1
     done
 
-    echo -e "${PURPLE}執行休眠指令 (echo mem > /sys/power/state)...${NC}"
+    echo -e "${PURPLE}執行休眠指令 ...${NC}"
     log_message "System entering suspend..."
     
     # 執行休眠
-    if echo mem > /sys/power/state 2>/dev/null; then
+    if echo freeze > /sys/power/state 2>/dev/null; then
         # 腳本執行到這裡表示系統已喚醒
         echo
         echo -e "${GREEN}系統已喚醒！${NC}"
