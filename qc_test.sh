@@ -684,10 +684,41 @@ main() {
         echo
         echo -e "${CYAN}詳細日誌請查看: $LOG_FILE${NC}"
         echo
-        echo -e "${YELLOW}輸入 'r' 回到測試選單，按其他任意鍵關閉測試程序...${NC}"
+        echo -e "${YELLOW}輸入 'r' 回到測試選單，輸入 'd' 清除測試資料並退出${NC}"
+        echo -e "${YELLOW}按其他任意鍵關閉測試程序...${NC}"
         read -n 1 -r restart_choice
         echo
-        if [[ ! "$restart_choice" =~ ^[Rr]$ ]]; then
+        if [[ "$restart_choice" =~ ^[Rr]$ ]]; then
+            continue
+        elif [[ "$restart_choice" =~ ^[Dd]$ ]]; then
+            echo -e "${RED}╔══════════════════════════════════════════════════════╗${NC}"
+            echo -e "${RED}║                ⚠️  危險操作警告  ⚠️                ║${NC}"
+            echo -e "${RED}╠══════════════════════════════════════════════════════╣${NC}"
+            echo -e "${RED}║                                                      ║${NC}"
+            echo -e "${RED}║  此操作將會：                                        ║${NC}"
+            echo -e "${RED}║  1. 永久刪除整個測試資料夾 (rk-3568-test)            ║${NC}"
+            echo -e "${RED}║  2. 刪除桌面上的 QC 測試快捷方式                     ║${NC}"
+            echo -e "${RED}║                                                      ║${NC}"
+            echo -e "${RED}║  ⚠️  注意：此操作無法復原！所有測試日誌也將被清除。  ║${NC}"
+            echo -e "${RED}║                                                      ║${NC}"
+            echo -e "${RED}╚══════════════════════════════════════════════════════╝${NC}"
+            echo
+            if ask_user "您確定要清除所有測試資料並退出嗎？"; then
+                echo -e "${CYAN}正在清除資料...${NC}"
+                # 刪除桌面快捷方式 (可能存在的路徑)
+                rm -f /home/user1/Desktop/QC_Test.desktop 2>/dev/null
+                rm -f /home/user1/Desktop/rk-3568-test/QC_Test.desktop 2>/dev/null
+                # 獲取當前腳本所在的目錄 (假設它是 rk-3568-test)
+                local current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+                # 執行刪除 (在背景執行以確保腳本能正常退出)
+                (sleep 1 && rm -rf "$current_dir") &
+                echo -e "${GREEN}資料清除指令已發送。系統即將退出。${NC}"
+                exit 0
+            else
+                echo -e "${BLUE}操作已取消。${NC}"
+                continue
+            fi
+        else
             break
         fi
     done
