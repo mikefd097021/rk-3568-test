@@ -16,11 +16,17 @@ NC='\033[0m' # No Color
 # Get script directory (works even when run from USB)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+
+# Get image version from kernel build date
+BUILD_DATE=$(uname -v | sed -E 's/^#[0-9]+ SMP //')
+IMAGE_VER=$(date -d "$BUILD_DATE" +"%y%m%d.%H%M" 2>/dev/null || echo "Unknown")
+
 echo -e "\n"
 echo -e "${PURPLE}╔══════════════════════════════════════╗${NC}"
 echo -e "${PURPLE}║    RK-3568 QC One-Click System       ║${NC}"
 echo -e "${PURPLE}║       Automation Launcher            ║${NC}"
-echo -e "${PURPLE}║           Version 2.0                ║${NC}"
+echo -e "${PURPLE}║           Version 3.0                ║${NC}"
+echo -e "${PURPLE}║      Image Version: $IMAGE_VER      ║${NC}"
 echo -e "${PURPLE}╚══════════════════════════════════════╝${NC}"
 echo
 

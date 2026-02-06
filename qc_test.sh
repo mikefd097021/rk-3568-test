@@ -2,7 +2,7 @@
 
 # RK-3568 QC Interactive Test Script
 # Author: Auto-generated QC Test Script
-# Version: 2.0
+# Version: 3.0
 
 # Color definitions
 RED='\033[0;31m'
@@ -13,6 +13,10 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m' # No Color
+
+# Get image version from kernel build date
+BUILD_DATE=$(uname -v | sed -E 's/^#[0-9]+ SMP //')
+IMAGE_VER=$(date -d "$BUILD_DATE" +"%y%m%d.%H%M" 2>/dev/null || echo "Unknown")
 
 # Test results tracking
 declare -A test_results
@@ -648,7 +652,8 @@ main() {
         clear
         echo -e "${PURPLE}╔══════════════════════════════════════╗${NC}"
         echo -e "${PURPLE}║       RK-3568 QC Test System         ║${NC}"
-        echo -e "${PURPLE}║            Version 2.0               ║${NC}"
+        echo -e "${PURPLE}║            Version 3.0               ║${NC}"
+        echo -e "${PURPLE}║      Image Version: $IMAGE_VER      ║${NC}"
         echo -e "${PURPLE}╚══════════════════════════════════════╝${NC}"
         echo
         echo -e "${CYAN}測試項目選單：${NC}"
