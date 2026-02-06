@@ -269,11 +269,12 @@ wait_for_device() {
 test_usb() {
     print_header "USB 設備測試"
     local test_size=10
-    local usb_path=$(get_mount_point "sd[a-z]1")
+    # 偵測任何 sdXN 的掛載點 (例如 sda1, sdb1)
+    local usb_path=$(get_mount_point "sd[a-z][0-9]")
     
     if [ -z "$usb_path" ] || [ ! -d "$usb_path" ] || [ ! "$(ls -A "$usb_path" 2>/dev/null)" ]; then
-        wait_for_device "USB 設備" "sd[a-z]1"
-        usb_path=$(get_mount_point "sd[a-z]1")
+        wait_for_device "USB 設備" "sd[a-z][0-9]"
+        usb_path=$(get_mount_point "sd[a-z][0-9]")
     fi
 
     if [ -n "$usb_path" ] && [ -d "$usb_path" ] && [ "$(ls -A "$usb_path" 2>/dev/null)" ]; then
@@ -295,11 +296,12 @@ test_usb() {
 test_sdcard() {
     print_header "SD卡 測試"
     local test_size=10
-    local sd_path=$(get_mount_point "mmcblk1p1")
+    # 偵測 mmcblk1 的任何分區 (例如 mmcblk1p1, mmcblk1p6)
+    local sd_path=$(get_mount_point "mmcblk1p[0-9]")
 
     if [ -z "$sd_path" ] || [ ! -d "$sd_path" ] || [ ! "$(ls -A "$sd_path" 2>/dev/null)" ]; then
-        wait_for_device "SD卡" "mmcblk1p1"
-        sd_path=$(get_mount_point "mmcblk1p1")
+        wait_for_device "SD卡" "mmcblk1p[0-9]"
+        sd_path=$(get_mount_point "mmcblk1p[0-9]")
     fi
 
     if [ -n "$sd_path" ] && [ -d "$sd_path" ] && [ "$(ls -A "$sd_path" 2>/dev/null)" ]; then

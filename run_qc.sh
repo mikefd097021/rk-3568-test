@@ -129,7 +129,7 @@ setup_mount_points() {
     mkdir -p /media/user1/sdcard 2>/dev/null
 
     # Check and Auto-mount USB devices
-    if grep -q "/dev/sd[a-z]1" /proc/mounts; then
+    if grep -q "/dev/sd[a-z][0-9]" /proc/mounts; then
         echo -e "${GREEN}✓ USB 設備已在其他位置掛載${NC}"
     else
         for device in /dev/sd[a-z]1; do
@@ -141,7 +141,7 @@ setup_mount_points() {
     fi
 
     # Check and Auto-mount SD card
-    if grep -q "/dev/mmcblk1p1" /proc/mounts; then
+    if grep -q "/dev/mmcblk1p" /proc/mounts; then
         echo -e "${GREEN}✓ SD卡已在其他位置掛載${NC}"
     else
         for device in /dev/mmcblk[0-9]p1; do
