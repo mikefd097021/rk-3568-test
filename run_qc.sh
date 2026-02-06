@@ -128,21 +128,29 @@ setup_mount_points() {
     mkdir -p /media/user1/usb 2>/dev/null
     mkdir -p /media/user1/sdcard 2>/dev/null
 
-    # Auto-mount USB devices
-    for device in /dev/sd[a-z]1; do
-        if [ -b "$device" ]; then
-            mount "$device" /media/user1/usb 2>/dev/null && \
-            echo -e "${GREEN}✓ USB 設備已掛載: $device${NC}" && break
-        fi
-    done
+    # Check and Auto-mount USB devices
+    if grep -q "/dev/sd[a-z]1" /proc/mounts; then
+        echo -e "${GREEN}✓ USB 設備已在其他位置掛載${NC}"
+    else
+        for device in /dev/sd[a-z]1; do
+            if [ -b "$device" ]; then
+                mount "$device" /media/user1/usb 2>/dev/null && \
+                echo -e "${GREEN}✓ USB 設備已掛載: $device -> /media/user1/usb${NC}" && break
+            fi
+        done
+    fi
 
-    # Auto-mount SD card
-    for device in /dev/mmcblk[0-9]p1; do
-        if [ -b "$device" ] && [[ "$device" != *"mmcblk0"* ]]; then
-            mount "$device" /media/user1/sdcard 2>/dev/null && \
-            echo -e "${GREEN}✓ SD卡已掛載: $device${NC}" && break
-        fi
-    done
+    # Check and Auto-mount SD card
+    if grep -q "/dev/mmcblk1p1" /proc/mounts; then
+        echo -e "${GREEN}✓ SD卡已在其他位置掛載${NC}"
+    else
+        for device in /dev/mmcblk[0-9]p1; do
+            if [ -b "$device" ] && [[ "$device" != *"mmcblk0"* ]]; then
+                mount "$device" /media/user1/sdcard 2>/dev/null && \
+                echo -e "${GREEN}✓ SD卡已掛載: $device -> /media/user1/sdcard${NC}" && break
+            fi
+        done
+    fi
 
     echo -e "${GREEN}✓ 掛載點設置完成${NC}"
 }

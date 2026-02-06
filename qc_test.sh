@@ -18,6 +18,15 @@ NC='\033[0m' # No Color
 BUILD_DATE=$(uname -v | sed -E 's/^#[0-9]+ SMP //')
 IMAGE_VER=$(date -d "$BUILD_DATE" +"%y%m%d.%H%M" 2>/dev/null || echo "Unknown")
 
+# Function to get mount point for a device pattern
+get_mount_point() {
+    local dev_pattern="$1"  # e.g., "mmcblk1p1" or "sd[a-z]1"
+    # Search in /proc/mounts for the device and return the mount point
+    # We use awk to handle potential spaces in mount paths (though they are escaped as \040)
+    local mount_pt=$(grep -E "/dev/$dev_pattern" /proc/mounts | head -n 1 | awk '{print $2}' | sed 's/\\040/ /g')
+    echo "$mount_pt"
+}
+
 # Test results tracking
 declare -A test_results
 test_count=0
@@ -232,7 +241,7 @@ test_emmc() {
 # Helper for USB/SD wait
 wait_for_device() {
     local device_type="$1"
-    local mount_path="$2"
+    local dev_pattern="$2"
     local max_wait=10  # 最多等待 10 秒
     local wait_count=0
 
@@ -240,8 +249,9 @@ wait_for_device() {
     echo -e "${BLUE}等待 $device_type 插入 (最多等待 ${max_wait} 秒，按 Ctrl+C 跳過)${NC}"
 
     while [ $wait_count -lt $max_wait ]; do
-        if [ -d "$mount_path" ] && [ "$(ls -A "$mount_path" 2>/dev/null)" ]; then
-            echo -e "${GREEN}✓ 檢測到 $device_type${NC}"
+        local mount_path=$(get_mount_point "$dev_pattern")
+        if [ -n "$mount_path" ] && [ -d "$mount_path" ] && [ "$(ls -A "$mount_path" 2>/dev/null)" ]; then
+            echo -e "${GREEN}✓ 檢測到 $device_type 掛載於: $mount_path${NC}"
             return 0
         fi
 
@@ -259,20 +269,23 @@ wait_for_device() {
 test_usb() {
     print_header "USB 設備測試"
     local test_size=10
+    local usb_path=$(get_mount_point "sd[a-z]1")
     
-    if [ ! -d "/media/user1/usb" ] || [ ! "$(ls -A /media/user1/usb 2>/dev/null)" ]; then
-        wait_for_device "USB 設備" "/media/user1/usb"
+    if [ -z "$usb_path" ] || [ ! -d "$usb_path" ] || [ ! "$(ls -A "$usb_path" 2>/dev/null)" ]; then
+        wait_for_device "USB 設備" "sd[a-z]1"
+        usb_path=$(get_mount_point "sd[a-z]1")
     fi
 
-    if [ -d "/media/user1/usb" ] && [ "$(ls -A /media/user1/usb 2>/dev/null)" ]; then
+    if [ -n "$usb_path" ] && [ -d "$usb_path" ] && [ "$(ls -A "$usb_path" 2>/dev/null)" ]; then
+        echo -e "${BLUE}偵測到 USB 掛載點: $usb_path${NC}"
         echo -e "${BLUE}測試 USB 讀寫 (${test_size}MB)...${NC}"
-        if timeout 30 dd if=/dev/zero of=/media/user1/usb/test_usb bs=1M count=$test_size conv=fsync >/dev/null 2>&1 && \
-           timeout 30 dd if=/media/user1/usb/test_usb of=/dev/null bs=1M >/dev/null 2>&1; then
-            print_result "USB_TEST" "PASS" "USB 讀寫測試成功"
-            rm -f /media/user1/usb/test_usb
+        if timeout 30 dd if=/dev/zero of="$usb_path/test_usb" bs=1M count=$test_size conv=fsync >/dev/null 2>&1 && \
+           timeout 30 dd if="$usb_path/test_usb" of=/dev/null bs=1M >/dev/null 2>&1; then
+            print_result "USB_TEST" "PASS" "USB 讀寫測試成功 ($usb_path)"
+            rm -f "$usb_path/test_usb"
         else
-            print_result "USB_TEST" "FAIL" "USB 讀寫測試失敗"
-            rm -f /media/user1/usb/test_usb 2>/dev/null
+            print_result "USB_TEST" "FAIL" "USB 讀寫測試失敗 ($usb_path)"
+            rm -f "$usb_path/test_usb" 2>/dev/null
         fi
     else
         print_result "USB_TEST" "SKIP" "未檢測到 USB 設備"
@@ -282,20 +295,23 @@ test_usb() {
 test_sdcard() {
     print_header "SD卡 測試"
     local test_size=10
+    local sd_path=$(get_mount_point "mmcblk1p1")
 
-    if [ ! -d "/media/user1/sdcard" ] || [ ! "$(ls -A /media/user1/sdcard 2>/dev/null)" ]; then
-        wait_for_device "SD卡" "/media/user1/sdcard"
+    if [ -z "$sd_path" ] || [ ! -d "$sd_path" ] || [ ! "$(ls -A "$sd_path" 2>/dev/null)" ]; then
+        wait_for_device "SD卡" "mmcblk1p1"
+        sd_path=$(get_mount_point "mmcblk1p1")
     fi
 
-    if [ -d "/media/user1/sdcard" ] && [ "$(ls -A /media/user1/sdcard 2>/dev/null)" ]; then
+    if [ -n "$sd_path" ] && [ -d "$sd_path" ] && [ "$(ls -A "$sd_path" 2>/dev/null)" ]; then
+        echo -e "${BLUE}偵測到 SD卡 掛載點: $sd_path${NC}"
         echo -e "${BLUE}測試 SD卡 讀寫 (${test_size}MB)...${NC}"
-        if timeout 30 dd if=/dev/zero of=/media/user1/sdcard/test_sd bs=1M count=$test_size conv=fsync >/dev/null 2>&1 && \
-           timeout 30 dd if=/media/user1/sdcard/test_sd of=/dev/null bs=1M >/dev/null 2>&1; then
-            print_result "SDCARD_TEST" "PASS" "SD卡 讀寫測試成功"
-            rm -f /media/user1/sdcard/test_sd
+        if timeout 30 dd if=/dev/zero of="$sd_path/test_sd" bs=1M count=$test_size conv=fsync >/dev/null 2>&1 && \
+           timeout 30 dd if="$sd_path/test_sd" of=/dev/null bs=1M >/dev/null 2>&1; then
+            print_result "SDCARD_TEST" "PASS" "SD卡 讀寫測試成功 ($sd_path)"
+            rm -f "$sd_path/test_sd"
         else
-            print_result "SDCARD_TEST" "FAIL" "SD卡 讀寫測試失敗"
-            rm -f /media/user1/sdcard/test_sd 2>/dev/null
+            print_result "SDCARD_TEST" "FAIL" "SD卡 讀寫測試失敗 ($sd_path)"
+            rm -f "$sd_path/test_sd" 2>/dev/null
         fi
     else
         print_result "SDCARD_TEST" "SKIP" "未檢測到 SD卡 設備"
