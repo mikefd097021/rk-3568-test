@@ -629,14 +629,15 @@ test_keys() {
 test_suspend_resume() {
     print_header "休眠喚醒測試"
 
-    echo -e "${YELLOW}系統即將進入休眠模式 (freeze)...${NC}"
-    echo -e "${BLUE}請在系統進入休眠後 10 秒內，嘗試使用【觸控螢幕】或【按鍵】進行喚醒。${NC}"
-    echo -e "${BLUE}若 10 秒內未手動喚醒，系統將自動喚醒並判定為失敗。${NC}"
+    echo -e "${YELLOW}系統準備進入休眠模式 (freeze)...${NC}"
+    echo -e "${BLUE}請注意觀察主機板藍色燈號：${NC}"
+    echo -e "${BLUE}  1. 燈號應停止閃爍${NC}"
+    echo -e "${BLUE}  2. 螢幕將變黑${NC}"
+    echo -e "${BLUE}確認休眠後，請使用【觸控螢幕】喚醒系統。${NC}"
     echo
 
-    # 檢查 RTC 接口是否存在
-    if [ ! -f /sys/class/rtc/rtc0/wakealarm ]; then
-        print_result "SUSPEND_RESUME" "FAIL" "系統不支援 RTC 喚醒接口 (/sys/class/rtc/rtc0/wakealarm)"
+    if ! ask_user "準備好開始休眠測試了嗎？"; then
+        print_result "SUSPEND_RESUME" "SKIP" "使用者取消休眠測試"
         return
     fi
 
@@ -646,7 +647,7 @@ test_suspend_resume() {
         sleep 1
     done
 
-    log_message "System entering suspend (freeze mode, sysfs RTC test)..."
+    log_message "System entering suspend (manual freeze mode)..."
     
     # 保存當前亮度與背光路徑
     local backlight_path="/sys/class/backlight/lvds-backlight/brightness"
@@ -655,14 +656,6 @@ test_suspend_resume() {
         current_brightness=$(cat "$backlight_path")
     fi
 
-    # 獲取 RTC 目前的時間戳記 (使用 since_epoch 以確保與 wakealarm 同步)
-    local rtc_now=$(cat /sys/class/rtc/rtc0/since_epoch 2>/dev/null || date +%s)
-    
-    # 清除舊的鬧鐘並設定 10 秒後喚醒
-    echo 0 > /sys/class/rtc/rtc0/wakealarm
-    sleep 0.1
-    echo $((rtc_now + 10)) > /sys/class/rtc/rtc0/wakealarm
-    
     local start_time=$(date +%s)
     
     # 執行休眠 (依照要求只用 freeze)
@@ -687,18 +680,11 @@ test_suspend_resume() {
         local duration=$((end_time - start_time))
         
         echo
-        echo -e "${GREEN}系統已喚醒！ (耗時: ${duration} 秒)${NC}"
+        echo -e "${GREEN}系統已喚醒！ (休眠耗時: ${duration} 秒)${NC}"
         log_message "System resumed. Duration: ${duration}s"
 
-        # 判定標準：rtc 設定的是 10 秒
-        if [ $duration -lt 9 ]; then
-            print_result "SUSPEND_RESUME" "PASS" "使用者手動喚醒成功 (耗時 ${duration}s)"
-        else
-            print_result "SUSPEND_RESUME" "FAIL" "使用者未能在 10 秒內喚醒，由系統自動喚醒"
-        fi
-        
-        # 清除鬧鐘
-        echo 0 > /sys/class/rtc/rtc0/wakealarm 2>/dev/null
+        # 自動判定為成功 (因為能執行到這裡代表已經喚醒)
+        print_result "SUSPEND_RESUME" "PASS" "休眠與喚醒測試成功 (耗時 ${duration}s)"
     else
         print_result "SUSPEND_RESUME" "FAIL" "無法進入 freeze 休眠模式"
     fi
@@ -711,12 +697,12 @@ main() {
         clear
         echo -e "${PURPLE}╔══════════════════════════════════════╗${NC}"
         echo -e "${PURPLE}║       RK-3568 QC Test System         ║${NC}"
-        echo -e "${PURPLE}║            Version 3.0               ║${NC}"
+        echo -e "${PURPLE}║            Version 3.1               ║${NC}"
         echo -e "${PURPLE}║      Image Version: $IMAGE_VER      ║${NC}"
         echo -e "${PURPLE}╚══════════════════════════════════════╝${NC}"
         echo
         echo -e "${CYAN}測試項目選單：${NC}"
-        echo -e "  ${WHITE}0. 執行全部測試${NC}"
+        echo -e "  ${WHITE}0. 執行全部測試 (含休眠)${NC}"
         echo -e "  ${WHITE}1. 網路 eth0 測試${NC}"
         echo -e "  ${WHITE}2. 網路 eth1 測試${NC}"
         echo -e "  ${WHITE}3. GPIO 測試${NC}"
@@ -738,6 +724,7 @@ main() {
 
         case "$choice" in
             0)
+                # 執行前 13 項測試
                 test_eth0
                 test_eth1
                 test_gpio
@@ -751,6 +738,24 @@ main() {
                 test_i2c
                 test_time
                 test_keys
+
+                # 中途總結報告 (前 13 項)
+                echo
+                echo -e "${CYAN}================================${NC}"
+                echo -e "${WHITE}第一階段測試總結 (1-13項)${NC}"
+                echo -e "${CYAN}================================${NC}"
+                echo -e "${BLUE}已測試項目: $test_count${NC}"
+                echo -e "${GREEN}通過: $pass_count${NC}"
+                echo -e "${RED}失敗: $fail_count${NC}"
+                if [ $skip_count -gt 0 ]; then
+                    echo -e "${YELLOW}跳過: $skip_count${NC}"
+                fi
+                echo
+                echo -e "${YELLOW}接下來將進行最後一項：休眠喚醒測試${NC}"
+                echo -e "${YELLOW}請按 Enter 鍵繼續...${NC}"
+                read -r
+
+                # 執行第 14 項休眠測試
                 test_suspend_resume
                 ;;
             1) test_eth0 ;;
@@ -770,9 +775,9 @@ main() {
             *) echo -e "${RED}無效的選擇${NC}"; continue ;;
         esac
 
-        # Final summary
+        # Final summary (全項目)
         echo -e "${CYAN}================================${NC}"
-        echo -e "${WHITE}測試結果總結${NC}"
+        echo -e "${WHITE}最終測試結果總結${NC}"
         echo -e "${CYAN}================================${NC}"
         echo -e "${BLUE}總測試項目: $test_count${NC}"
         echo -e "${GREEN}通過: $pass_count${NC}"
