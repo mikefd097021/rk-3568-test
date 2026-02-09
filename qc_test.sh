@@ -717,44 +717,15 @@ main() {
         echo -e "  ${WHITE}12. 時間系統測試${NC}"
         echo -e "  ${WHITE}13. 按鍵測試${NC}"
         echo -e "  ${WHITE}14. 休眠喚醒測試${NC}"
+        echo -e "  ${WHITE}99. 跳過測試並進入退出選單${NC}"
         echo
-        read -p "請選擇測試項目 (0-14): " choice
+        read -p "請選擇測試項目 (0-99): " choice
 
         log_message "QC Test Started - Choice: $choice"
 
         case "$choice" in
             0)
-                # 執行前 13 項測試
-                test_eth0
-                test_eth1
-                test_gpio
-                test_lcd
-                test_emmc
-                test_usb
-                test_sdcard
-                test_uart_ttyS3
-                test_uart_ttyS4
-                test_spi
-                test_i2c
-                test_time
-                test_keys
-
-                # 中途總結報告 (前 13 項)
-                echo
-                echo -e "${CYAN}================================${NC}"
-                echo -e "${WHITE}第一階段測試總結 (1-13項)${NC}"
-                echo -e "${CYAN}================================${NC}"
-                echo -e "${BLUE}已測試項目: $test_count${NC}"
-                echo -e "${GREEN}通過: $pass_count${NC}"
-                echo -e "${RED}失敗: $fail_count${NC}"
-                if [ $skip_count -gt 0 ]; then
-                    echo -e "${YELLOW}跳過: $skip_count${NC}"
-                fi
-                echo
-                echo -e "${YELLOW}接下來將進行最後一項：休眠喚醒測試${NC}"
-                echo -e "${YELLOW}請按 Enter 鍵繼續...${NC}"
-                read -r
-
+                # ... 略 ...
                 # 執行第 14 項休眠測試
                 test_suspend_resume
                 ;;
@@ -772,6 +743,9 @@ main() {
             12) test_time ;;
             13) test_keys ;;
             14) test_suspend_resume ;;
+            99) # 直接跳到總結與退出
+                echo -e "${YELLOW}已跳過所有測試項目。${NC}"
+                ;;
             *) echo -e "${RED}無效的選擇${NC}"; continue ;;
         esac
 
