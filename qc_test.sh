@@ -710,7 +710,7 @@ main() {
         echo -e "${PURPLE}╚══════════════════════════════════════╝${NC}"
         echo
         echo -e "${CYAN}測試項目選單：${NC}"
-        echo -e "  ${WHITE}0. 執行全部測試 (含休眠)${NC}"
+        echo -e "  ${WHITE}0. 執行基礎測試 (1-13項, 不含休眠)${NC}"
         echo -e "  ${WHITE}1. 網路 eth0 測試${NC}"
         echo -e "  ${WHITE}2. 網路 eth1 測試${NC}"
         echo -e "  ${WHITE}3. GPIO 測試${NC}"
@@ -725,6 +725,7 @@ main() {
         echo -e "  ${WHITE}12. 時間系統測試${NC}"
         echo -e "  ${WHITE}13. 按鍵測試${NC}"
         echo -e "  ${WHITE}14. 休眠喚醒測試${NC}"
+        echo -e "  ${WHITE}98. 執行完整測試 (1-14項, 含休眠)${NC}"
         echo -e "  ${WHITE}99. 跳過測試並進入退出選單${NC}"
         echo
         read -p "請選擇測試項目 (0-99): " choice
@@ -733,6 +734,22 @@ main() {
 
         case "$choice" in
             0)
+                # 執行前 13 項測試
+                test_eth0
+                test_eth1
+                test_gpio
+                test_lcd
+                test_emmc
+                test_usb
+                test_sdcard
+                test_uart_ttyS3
+                test_uart_ttyS4
+                test_spi
+                test_i2c
+                test_time
+                test_keys
+                ;;
+            98)
                 # 執行前 13 項測試
                 test_eth0
                 test_eth1
@@ -761,8 +778,8 @@ main() {
                 fi
                 echo
                 echo -e "${YELLOW}接下來將進行最後一項：休眠喚醒測試${NC}"
-                #echo -e "${YELLOW}請按 Enter 鍵繼續...${NC}"
-                #read -r
+                echo -e "${YELLOW}請按 Enter 鍵繼續...${NC}"
+                read -r
 
                 # 執行第 14 項休眠測試
                 test_suspend_resume
