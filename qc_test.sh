@@ -629,7 +629,7 @@ test_keys() {
 test_suspend_resume() {
     print_header "休眠喚醒測試"
 
-    echo -e "${YELLOW}系統即將進入休眠模式...${NC}"
+    echo -e "${YELLOW}系統即將進入休眠模式 (freeze)...${NC}"
     echo -e "${BLUE}請在系統進入休眠後 10 秒內，嘗試使用【觸控螢幕】或【按鍵】進行喚醒。${NC}"
     echo -e "${BLUE}若 10 秒內未手動喚醒，系統將自動喚醒並判定為失敗。${NC}"
     echo
@@ -646,12 +646,7 @@ test_suspend_resume() {
         sleep 1
     done
 
-    log_message "System entering suspend (sysfs RTC test)..."
-    
-    # 清除舊的鬧鐘並設定 10 秒後喚醒
-    local start_time=$(date +%s)
-    echo 0 > /sys/class/rtc/rtc0/wakealarm
-    echo $((start_time + 10)) > /sys/class/rtc/rtc0/wakealarm
+    log_message "System entering suspend (freeze mode, sysfs RTC test)..."
     
     # 保存當前亮度與背光路徑
     local backlight_path="/sys/class/backlight/lvds-backlight/brightness"
@@ -660,7 +655,17 @@ test_suspend_resume() {
         current_brightness=$(cat "$backlight_path")
     fi
 
-    # 執行休眠 (優先嘗試 mem, 失敗則嘗試 freeze)
+    # 獲取 RTC 目前的時間戳記 (使用 since_epoch 以確保與 wakealarm 同步)
+    local rtc_now=$(cat /sys/class/rtc/rtc0/since_epoch 2>/dev/null || date +%s)
+    
+    # 清除舊的鬧鐘並設定 10 秒後喚醒
+    echo 0 > /sys/class/rtc/rtc0/wakealarm
+    sleep 0.1
+    echo $((rtc_now + 10)) > /sys/class/rtc/rtc0/wakealarm
+    
+    local start_time=$(date +%s)
+    
+    # 執行休眠 (依照要求只用 freeze)
     local suspend_success=false
     if echo freeze > /sys/power/state 2>/dev/null; then
         suspend_success=true
@@ -668,13 +673,13 @@ test_suspend_resume() {
 
     if [ "$suspend_success" = true ]; then
         # === 喚醒後強制點亮螢幕 ===
-        # 1. 解除 Framebuffer 空白狀態 (0: unblank, 1: blank)
+        # 1. 解除 Framebuffer 空白狀態
         echo 0 > /sys/class/graphics/fb0/blank 2>/dev/null
         # 2. 恢復/強制設置背光亮度
         if [ -f "$backlight_path" ]; then
              echo "$current_brightness" > "$backlight_path" 2>/dev/null
         fi
-        # 3. 嘗試喚醒 VT (如果有的話)
+        # 3. 嘗試喚醒 VT
         chvt 1 2>/dev/null && chvt 7 2>/dev/null
         # ============================
 
@@ -686,7 +691,6 @@ test_suspend_resume() {
         log_message "System resumed. Duration: ${duration}s"
 
         # 判定標準：rtc 設定的是 10 秒
-        # 如果 duration 小於 9 秒，代表是人為提前喚醒
         if [ $duration -lt 9 ]; then
             print_result "SUSPEND_RESUME" "PASS" "使用者手動喚醒成功 (耗時 ${duration}s)"
         else
@@ -696,7 +700,7 @@ test_suspend_resume() {
         # 清除鬧鐘
         echo 0 > /sys/class/rtc/rtc0/wakealarm 2>/dev/null
     else
-        print_result "SUSPEND_RESUME" "FAIL" "無法進入休眠模式 (寫入 /sys/power/state 失敗)"
+        print_result "SUSPEND_RESUME" "FAIL" "無法進入 freeze 休眠模式"
     fi
 }
 
