@@ -653,6 +653,13 @@ test_suspend_resume() {
     echo 0 > /sys/class/rtc/rtc0/wakealarm
     echo $((start_time + 10)) > /sys/class/rtc/rtc0/wakealarm
     
+    # 保存當前亮度與背光路徑
+    local backlight_path="/sys/class/backlight/lvds-backlight/brightness"
+    local current_brightness=255
+    if [ -f "$backlight_path" ]; then
+        current_brightness=$(cat "$backlight_path")
+    fi
+
     # 執行休眠 (優先嘗試 mem, 失敗則嘗試 freeze)
     local suspend_success=false
     if echo freeze > /sys/power/state 2>/dev/null; then
@@ -660,6 +667,17 @@ test_suspend_resume() {
     fi
 
     if [ "$suspend_success" = true ]; then
+        # === 喚醒後強制點亮螢幕 ===
+        # 1. 解除 Framebuffer 空白狀態 (0: unblank, 1: blank)
+        echo 0 > /sys/class/graphics/fb0/blank 2>/dev/null
+        # 2. 恢復/強制設置背光亮度
+        if [ -f "$backlight_path" ]; then
+             echo "$current_brightness" > "$backlight_path" 2>/dev/null
+        fi
+        # 3. 嘗試喚醒 VT (如果有的話)
+        chvt 1 2>/dev/null && chvt 7 2>/dev/null
+        # ============================
+
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
         
