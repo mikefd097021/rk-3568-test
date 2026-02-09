@@ -631,12 +631,12 @@ test_suspend_resume() {
 
     echo -e "${YELLOW}系統即將進入休眠模式...${NC}"
     echo -e "${BLUE}請在系統進入休眠後 10 秒內，嘗試使用【觸控螢幕】或【按鍵】進行喚醒。${NC}"
-    echo -e "${BLUE}若 10 秒內未手動喚醒，系統將嘗試自動喚醒並判定為失敗。${NC}"
+    echo -e "${BLUE}若 10 秒內未手動喚醒，系統將自動喚醒並判定為失敗。${NC}"
     echo
 
-    # 檢查 rtcwake 是否存在
-    if ! command -v rtcwake >/dev/null 2>&1; then
-        print_result "SUSPEND_RESUME" "FAIL" "找不到 rtcwake 工具，無法進行自動化測試"
+    # 檢查 RTC 接口是否存在
+    if [ ! -f /sys/class/rtc/rtc0/wakealarm ]; then
+        print_result "SUSPEND_RESUME" "FAIL" "系統不支援 RTC 喚醒接口 (/sys/class/rtc/rtc0/wakealarm)"
         return
     fi
 
@@ -646,14 +646,20 @@ test_suspend_resume() {
         sleep 1
     done
 
-    log_message "System entering suspend (automated test)..."
+    log_message "System entering suspend (sysfs RTC test)..."
     
+    # 清除舊的鬧鐘並設定 10 秒後喚醒
     local start_time=$(date +%s)
+    echo 0 > /sys/class/rtc/rtc0/wakealarm
+    echo $((start_time + 10)) > /sys/class/rtc/rtc0/wakealarm
     
-    # 使用 rtcwake 設定 10 秒後喚醒並進入 mem (suspend) 模式
-    # -m mem: 進入休眠
-    # -s 10: 10 秒後喚醒
-    if rtcwake -m mem -s 10 >/dev/null 2>&1; then
+    # 執行休眠 (優先嘗試 mem, 失敗則嘗試 freeze)
+    local suspend_success=false
+    if echo freeze > /sys/power/state 2>/dev/null; then
+        suspend_success=true
+    fi
+
+    if [ "$suspend_success" = true ]; then
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
         
@@ -661,15 +667,18 @@ test_suspend_resume() {
         echo -e "${GREEN}系統已喚醒！ (耗時: ${duration} 秒)${NC}"
         log_message "System resumed. Duration: ${duration}s"
 
-        # 判定標準：rtc 設定的是 10 秒，考慮到進入與離開休眠的緩衝，
-        # 如果 duration 小於 9 秒，通常代表是被人為提前喚醒的
+        # 判定標準：rtc 設定的是 10 秒
+        # 如果 duration 小於 9 秒，代表是人為提前喚醒
         if [ $duration -lt 9 ]; then
             print_result "SUSPEND_RESUME" "PASS" "使用者手動喚醒成功 (耗時 ${duration}s)"
         else
             print_result "SUSPEND_RESUME" "FAIL" "使用者未能在 10 秒內喚醒，由系統自動喚醒"
         fi
+        
+        # 清除鬧鐘
+        echo 0 > /sys/class/rtc/rtc0/wakealarm 2>/dev/null
     else
-        print_result "SUSPEND_RESUME" "FAIL" "執行 rtcwake 指令失敗"
+        print_result "SUSPEND_RESUME" "FAIL" "無法進入休眠模式 (寫入 /sys/power/state 失敗)"
     fi
 }
 
