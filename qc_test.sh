@@ -87,12 +87,20 @@ print_result() {
 ask_user() {
     local question="$1"
     local response
-    echo -e "${YELLOW}$question (y/n): ${NC}"
-    read -r response
-    case "$response" in
-        [Yy]|[Yy][Ee][Ss]) return 0 ;;
-        *) return 1 ;;
-    esac
+    echo -ne "${YELLOW}$question (y/n): ${NC}"
+    while true; do
+        read -n 1 -s response
+        case "$response" in
+            [Yy]) 
+                echo -e "${GREEN}y${NC}"
+                return 0 
+                ;;
+            [Nn]) 
+                echo -e "${RED}n${NC}"
+                return 1 
+                ;;
+        esac
+    done
 }
 
 # Test functions
@@ -753,8 +761,8 @@ main() {
                 fi
                 echo
                 echo -e "${YELLOW}接下來將進行最後一項：休眠喚醒測試${NC}"
-                echo -e "${YELLOW}請按 Enter 鍵繼續...${NC}"
-                read -r
+                #echo -e "${YELLOW}請按 Enter 鍵繼續...${NC}"
+                #read -r
 
                 # 執行第 14 項休眠測試
                 test_suspend_resume
