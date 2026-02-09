@@ -630,8 +630,15 @@ test_suspend_resume() {
     print_header "休眠喚醒測試"
 
     echo -e "${YELLOW}系統即將進入休眠模式...${NC}"
-    echo -e "${BLUE}請在系統進入休眠後，使用【觸控螢幕】進行喚醒測試。${NC}"
+    echo -e "${BLUE}請在系統進入休眠後 10 秒內，嘗試使用【觸控螢幕】或【按鍵】進行喚醒。${NC}"
+    echo -e "${BLUE}若 10 秒內未手動喚醒，系統將嘗試自動喚醒並判定為失敗。${NC}"
     echo
+
+    # 檢查 rtcwake 是否存在
+    if ! command -v rtcwake >/dev/null 2>&1; then
+        print_result "SUSPEND_RESUME" "FAIL" "找不到 rtcwake 工具，無法進行自動化測試"
+        return
+    fi
 
     # 倒數計時
     for i in 3 2 1; do
@@ -639,37 +646,30 @@ test_suspend_resume() {
         sleep 1
     done
 
-    echo -e "${PURPLE}執行休眠指令 ...${NC}"
-    log_message "System entering suspend..."
+    log_message "System entering suspend (automated test)..."
     
-    # 執行休眠
-    if echo freeze > /sys/power/state 2>/dev/null; then
-        # 腳本執行到這裡表示系統已喚醒
+    local start_time=$(date +%s)
+    
+    # 使用 rtcwake 設定 10 秒後喚醒並進入 mem (suspend) 模式
+    # -m mem: 進入休眠
+    # -s 10: 10 秒後喚醒
+    if rtcwake -m mem -s 10 >/dev/null 2>&1; then
+        local end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        
         echo
-        echo -e "${GREEN}系統已喚醒！${NC}"
-        log_message "System resumed from suspend."
+        echo -e "${GREEN}系統已喚醒！ (耗時: ${duration} 秒)${NC}"
+        log_message "System resumed. Duration: ${duration}s"
 
-        if ask_user "休眠與喚醒過程是否正常？"; then
-            print_result "SUSPEND_RESUME" "PASS" "休眠與觸控喚醒測試通過"
+        # 判定標準：rtc 設定的是 10 秒，考慮到進入與離開休眠的緩衝，
+        # 如果 duration 小於 9 秒，通常代表是被人為提前喚醒的
+        if [ $duration -lt 9 ]; then
+            print_result "SUSPEND_RESUME" "PASS" "使用者手動喚醒成功 (耗時 ${duration}s)"
         else
-            print_result "SUSPEND_RESUME" "FAIL" "用戶回報休眠喚醒異常"
+            print_result "SUSPEND_RESUME" "FAIL" "使用者未能在 10 秒內喚醒，由系統自動喚醒"
         fi
     else
-        # 嘗試使用 systemctl suspend 作為備案
-        if command -v systemctl >/dev/null 2>&1; then
-             echo -e "${YELLOW}嘗試使用 systemctl suspend...${NC}"
-             if systemctl suspend 2>/dev/null; then
-                echo
-                echo -e "${GREEN}系統已喚醒！${NC}"
-                if ask_user "休眠與喚醒過程是否正常？"; then
-                    print_result "SUSPEND_RESUME" "PASS" "休眠與觸控喚醒測試通過"
-                else
-                    print_result "SUSPEND_RESUME" "FAIL" "用戶回報休眠喚醒異常"
-                fi
-                return
-             fi
-        fi
-        print_result "SUSPEND_RESUME" "FAIL" "無法執行休眠指令，請檢查權限或系統支援"
+        print_result "SUSPEND_RESUME" "FAIL" "執行 rtcwake 指令失敗"
     fi
 }
 
