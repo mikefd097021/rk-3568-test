@@ -246,6 +246,8 @@ wait_for_device() {
     local wait_count=0
 
     echo -e "${YELLOW}未檢測到 $device_type，請插入 $device_type...${NC}"
+    echo -e "${BLUE}等待 $device_type 插入 (最多等待 ${max_wait} 秒，按 Ctrl+C 跳過)${NC}"
+
     while [ $wait_count -lt $max_wait ]; do
         # 檢查是否為模式 (包含 [ 或 *) 還是直接的路徑
         if [[ "$target" == *"["* ]]; then
@@ -264,27 +266,31 @@ wait_for_device() {
         sleep 1
         wait_count=$((wait_count + 1))
     done
-    echo -e "\n${YELLOW}⚠ 等待超時${NC}"
+    echo
+    echo -e "${YELLOW}⚠ 等待超時，跳過 $device_type 測試${NC}"
     return 1
 }
 
 test_usb() {
     print_header "USB 設備測試"
     local test_size=10
+    local usb_path=$(get_mount_point "sd[a-z][0-9]")
     
-    if [ ! -d "/media/user1/usb" ] || [ ! "$(ls -A /media/user1/usb 2>/dev/null)" ]; then
-        wait_for_device "USB 設備" "/media/user1/usb"
+    if [ -z "$usb_path" ] || [ ! -d "$usb_path" ]; then
+        wait_for_device "USB 設備" "sd[a-z][0-9]"
+        usb_path=$(get_mount_point "sd[a-z][0-9]")
     fi
 
-    if [ -d "/media/user1/usb" ] && [ "$(ls -A /media/user1/usb 2>/dev/null)" ]; then
+    if [ -n "$usb_path" ] && [ -d "$usb_path" ]; then
+        echo -e "${BLUE}偵測到 USB 掛載點: ${WHITE}$usb_path${NC}"
         echo -e "${BLUE}測試 USB 讀寫 (${test_size}MB)...${NC}"
-        if timeout 30 dd if=/dev/zero of=/media/user1/usb/test_usb bs=1M count=$test_size conv=fsync >/dev/null 2>&1 && \
-           timeout 30 dd if=/media/user1/usb/test_usb of=/dev/null bs=1M >/dev/null 2>&1; then
-            print_result "USB_TEST" "PASS" "USB 讀寫測試成功"
-            rm -f /media/user1/usb/test_usb
+        if timeout 30 dd if=/dev/zero of="$usb_path/test_usb" bs=1M count=$test_size conv=fsync >/dev/null 2>&1 && \
+           timeout 30 dd if="$usb_path/test_usb" of=/dev/null bs=1M >/dev/null 2>&1; then
+            print_result "USB_TEST" "PASS" "USB 讀寫測試成功 ($usb_path)"
+            rm -f "$usb_path/test_usb"
         else
-            print_result "USB_TEST" "FAIL" "USB 讀寫測試失敗"
-            rm -f /media/user1/usb/test_usb 2>/dev/null
+            print_result "USB_TEST" "FAIL" "USB 讀寫測試失敗 ($usb_path)"
+            rm -f "$usb_path/test_usb" 2>/dev/null
         fi
     else
         print_result "USB_TEST" "SKIP" "未檢測到 USB 設備"
