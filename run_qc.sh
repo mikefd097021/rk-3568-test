@@ -25,7 +25,7 @@ echo -e "\n"
 echo -e "${PURPLE}╔══════════════════════════════════════╗${NC}"
 echo -e "${PURPLE}║    RK-3568 QC One-Click System       ║${NC}"
 echo -e "${PURPLE}║       Automation Launcher            ║${NC}"
-echo -e "${PURPLE}║           Version 3.0                ║${NC}"
+echo -e "${PURPLE}║           Version 4.1                ║${NC}"
 echo -e "${PURPLE}║      Image Version: $IMAGE_VER      ║${NC}"
 echo -e "${PURPLE}╚══════════════════════════════════════╝${NC}"
 echo

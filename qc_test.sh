@@ -698,14 +698,95 @@ test_suspend_resume() {
     fi
 }
 
+# NTP Time Sync function
+sync_ntp_time() {
+    print_header "NTP 時間自動校正"
+    
+    if ! ask_user "是否要從 NTP 伺服器 (192.168.2.115) 同步系統時間？"; then
+        echo -e "${YELLOW}已跳過時間同步。${NC}"
+        echo
+        return 1
+    fi
+
+    local NTP_SERVER="192.168.2.115"
+    local CONF_FILE="/etc/systemd/timesyncd.conf"
+
+    echo -e "${BLUE}正在配置 NTP 伺服器: ${WHITE}$NTP_SERVER${NC}"
+
+    # 設定 NTP server
+    if [ -f "$CONF_FILE" ]; then
+        if grep -q "^NTP=" "$CONF_FILE"; then
+            sed -i "s/^NTP=.*/NTP=$NTP_SERVER/" "$CONF_FILE"
+        else
+            sed -i "/^\[Time\]/a NTP=$NTP_SERVER" "$CONF_FILE"
+        fi
+        # 取消註解 FallbackNTP
+        sed -i 's/^#FallbackNTP=/FallbackNTP=/' "$CONF_FILE"
+    else
+        echo -e "${RED}錯誤: 找不到配置文件 $CONF_FILE${NC}"
+    fi
+
+    echo -e "${BLUE}正在重啟 systemd-timesyncd...${NC}"
+    systemctl restart systemd-timesyncd 2>/dev/null || echo -e "${YELLOW}無法重啟 systemd-timesyncd${NC}"
+
+    echo -e "${BLUE}正在啟用 NTP 同步...${NC}"
+    timedatectl set-ntp true 2>/dev/null
+
+    echo -e "${BLUE}正在等待同步完成 (最長 30 秒)...${NC}"
+
+    local SYNC_OK=0
+    for i in {1..15}; do
+        local STATUS=$(timedatectl timesync-status 2>/dev/null | grep ServerName || true)
+        
+        if [ -n "$STATUS" ]; then
+            printf "\r${CYAN}檢查次數 %d/15: %s${NC}" $i "$STATUS"
+        else
+            printf "\r${CYAN}檢查次數 %d/15: 等待伺服器響應...${NC}" $i
+        fi
+
+        if echo "$STATUS" | grep -q "$NTP_SERVER"; then
+            SYNC_OK=1
+            echo "" # 換行
+            break
+        fi
+
+        sleep 2
+    done
+
+    if [ "$SYNC_OK" -eq 1 ]; then
+        echo -e "${GREEN}✓ 系統時間已成功與 $NTP_SERVER 同步${NC}"
+        echo -e "${BLUE}正在將系統時間寫入硬體時鐘 (RTC)...${NC}"
+        hwclock --systohc 2>/dev/null
+        echo -e "${GREEN}✓ RTC 已更新${NC}"
+    else
+        echo ""
+        echo -e "${RED}⚠ 警告: 無法確認時間同步狀態${NC}"
+    fi
+
+    echo
+    echo -e "${WHITE}當前時間狀態：${NC}"
+    timedatectl status 2>/dev/null | grep -E "Local time|System clock synchronized|NTP service" || timedatectl status
+    echo
+    echo -e "${YELLOW}按 Enter 鍵繼續進入測試選單...${NC}"
+    read -r
+}
+
 # Main execution
 main() {
+    local ntp_performed=false
     while true; do
         reset_results
         clear
+
+        if [ "$ntp_performed" = false ]; then
+            sync_ntp_time
+            ntp_performed=true
+            clear
+        fi
+
         echo -e "${PURPLE}╔══════════════════════════════════════╗${NC}"
         echo -e "${PURPLE}║       RK-3568 QC Test System         ║${NC}"
-        echo -e "${PURPLE}║            Version 3.1               ║${NC}"
+        echo -e "${PURPLE}║            Version 4.1               ║${NC}"
         echo -e "${PURPLE}║      Image Version: $IMAGE_VER      ║${NC}"
         echo -e "${PURPLE}╚══════════════════════════════════════╝${NC}"
         echo
