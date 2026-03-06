@@ -710,11 +710,14 @@ sync_ntp_time() {
 
     local NTP_SERVER="192.168.2.115"
     local CONF_FILE="/etc/systemd/timesyncd.conf"
+    local CONF_BACKUP=""
 
-    echo -e "${BLUE}正在配置 NTP 伺服器: ${WHITE}$NTP_SERVER${NC}"
-
-    # 設定 NTP server
+    # 備份原始配置文件內容
     if [ -f "$CONF_FILE" ]; then
+        CONF_BACKUP=$(cat "$CONF_FILE")
+        echo -e "${BLUE}正在配置臨時 NTP 伺服器: ${WHITE}$NTP_SERVER${NC}"
+
+        # 執行臨時修改
         if grep -q "^NTP=" "$CONF_FILE"; then
             sed -i "s/^NTP=.*/NTP=$NTP_SERVER/" "$CONF_FILE"
         else
@@ -726,7 +729,7 @@ sync_ntp_time() {
         echo -e "${RED}錯誤: 找不到配置文件 $CONF_FILE${NC}"
     fi
 
-    echo -e "${BLUE}正在重啟 systemd-timesyncd...${NC}"
+    echo -e "${BLUE}正在重啟 systemd-timesyncd 以套用臨時設定...${NC}"
     systemctl restart systemd-timesyncd 2>/dev/null || echo -e "${YELLOW}無法重啟 systemd-timesyncd${NC}"
 
     echo -e "${BLUE}正在啟用 NTP 同步...${NC}"
@@ -743,20 +746,14 @@ sync_ntp_time() {
         # 檢查是否已同步
         local IS_SYNCED=$(echo "$STATUS_RAW" | grep -i "System clock synchronized: yes" || true)
         
-        # 取得當前連接的伺服器 (支援不同版本)
+        # 取得當前連接的伺服器
         local CURRENT_SERVER=$(echo "$TIMESYNC_RAW" | grep -E "Server:|ServerName:" | awk '{print $2}' || echo "None")
 
         if [ -n "$IS_SYNCED" ]; then
             printf "\r${GREEN}檢查次數 %d/15: [已同步] 伺服器: %s${NC}" $i "$CURRENT_SERVER"
-            # 只要系統判定已同步，且伺服器包含目標 IP (或是已連接到目標)
-            if echo "$TIMESYNC_RAW" | grep -q "$NTP_SERVER"; then
-                SYNC_OK=1
-                echo "" 
-                break
-            fi
-            # 如果已經同步但伺服器不是預期的，也算通過 (有些環境會解析成 hostname)
+            # 只要系統判定已同步
             SYNC_OK=1
-            echo ""
+            echo "" 
             break
         else
             printf "\r${CYAN}檢查次數 %d/15: [同步中...] 當前伺服器: %s${NC}" $i "$CURRENT_SERVER"
@@ -764,6 +761,13 @@ sync_ntp_time() {
 
         sleep 2
     done
+
+    # 同步結束後，立即恢復配置文件 (不重啟服務)
+    if [ -n "$CONF_BACKUP" ]; then
+        echo -e "${BLUE}正在恢復原始 NTP 配置文件...${NC}"
+        echo "$CONF_BACKUP" > "$CONF_FILE"
+        echo -e "${GREEN}✓ 配置文件已恢復 (下次重啟後生效)${NC}"
+    fi
 
     if [ "$SYNC_OK" -eq 1 ]; then
         echo -e "${GREEN}✓ 系統時間已成功與 NTP 伺服器同步${NC}"
@@ -773,7 +777,6 @@ sync_ntp_time() {
     else
         echo ""
         echo -e "${RED}⚠ 警告: 超時 30 秒後仍無法確認同步狀態${NC}"
-        echo -e "${YELLOW}請檢查網路連線或 NTP 伺服器 (192.168.2.115) 是否在線。${NC}"
     fi
 
     echo
