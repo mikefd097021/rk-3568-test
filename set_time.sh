@@ -1,25 +1,27 @@
 #!/bin/bash
 
-# 設定要修改的時間
-
 NEW_TIME="2026-03-01 1:30:00"
 
+echo "Disable NTP auto synchronization..."
+sudo timedatectl set-ntp false
+
 echo "Setting system time to: $NEW_TIME"
-
-# 設定系統時間
-
 sudo timedatectl set-time "$NEW_TIME"
 
-# 寫入硬體時鐘 (RTC)
-
+echo "Writing system time to RTC..."
 sudo hwclock --systohc
 
-echo "Time update completed."
+echo "Re-enabling NTP auto synchronization..."
+sudo timedatectl set-ntp true
 
 echo
-echo "Current system time:"
+echo "===== Current System Time ====="
 date
 
 echo
-echo "RTC time:"
+echo "===== RTC Time ====="
 sudo hwclock -r
+
+echo
+echo "===== Time Sync Status ====="
+timedatectl status
