@@ -736,36 +736,53 @@ sync_ntp_time() {
 
     local SYNC_OK=0
     for i in {1..15}; do
-        local STATUS=$(timedatectl timesync-status 2>/dev/null | grep ServerName || true)
+        # 取得系統同步狀態
+        local STATUS_RAW=$(timedatectl status 2>/dev/null)
+        local TIMESYNC_RAW=$(timedatectl timesync-status 2>/dev/null)
         
-        if [ -n "$STATUS" ]; then
-            printf "\r${CYAN}檢查次數 %d/15: %s${NC}" $i "$STATUS"
-        else
-            printf "\r${CYAN}檢查次數 %d/15: 等待伺服器響應...${NC}" $i
-        fi
+        # 檢查是否已同步
+        local IS_SYNCED=$(echo "$STATUS_RAW" | grep -i "System clock synchronized: yes" || true)
+        
+        # 取得當前連接的伺服器 (支援不同版本)
+        local CURRENT_SERVER=$(echo "$TIMESYNC_RAW" | grep -E "Server:|ServerName:" | awk '{print $2}' || echo "None")
 
-        if echo "$STATUS" | grep -q "$NTP_SERVER"; then
+        if [ -n "$IS_SYNCED" ]; then
+            printf "\r${GREEN}檢查次數 %d/15: [已同步] 伺服器: %s${NC}" $i "$CURRENT_SERVER"
+            # 只要系統判定已同步，且伺服器包含目標 IP (或是已連接到目標)
+            if echo "$TIMESYNC_RAW" | grep -q "$NTP_SERVER"; then
+                SYNC_OK=1
+                echo "" 
+                break
+            fi
+            # 如果已經同步但伺服器不是預期的，也算通過 (有些環境會解析成 hostname)
             SYNC_OK=1
-            echo "" # 換行
+            echo ""
             break
+        else
+            printf "\r${CYAN}檢查次數 %d/15: [同步中...] 當前伺服器: %s${NC}" $i "$CURRENT_SERVER"
         fi
 
         sleep 2
     done
 
     if [ "$SYNC_OK" -eq 1 ]; then
-        echo -e "${GREEN}✓ 系統時間已成功與 $NTP_SERVER 同步${NC}"
+        echo -e "${GREEN}✓ 系統時間已成功與 NTP 伺服器同步${NC}"
         echo -e "${BLUE}正在將系統時間寫入硬體時鐘 (RTC)...${NC}"
         hwclock --systohc 2>/dev/null
         echo -e "${GREEN}✓ RTC 已更新${NC}"
     else
         echo ""
-        echo -e "${RED}⚠ 警告: 無法確認時間同步狀態${NC}"
+        echo -e "${RED}⚠ 警告: 超時 30 秒後仍無法確認同步狀態${NC}"
+        echo -e "${YELLOW}請檢查網路連線或 NTP 伺服器 (192.168.2.115) 是否在線。${NC}"
     fi
 
     echo
-    echo -e "${WHITE}當前時間狀態：${NC}"
+    echo -e "${WHITE}當前詳細時間狀態：${NC}"
     timedatectl status 2>/dev/null | grep -E "Local time|System clock synchronized|NTP service" || timedatectl status
+    if timedatectl timesync-status >/dev/null 2>&1; then
+        echo -e "${WHITE}NTP 連線詳情：${NC}"
+        timedatectl timesync-status | grep -E "Server|Packet count|Offset" || true
+    fi
     echo
     echo -e "${YELLOW}按 Enter 鍵繼續進入測試選單...${NC}"
     read -r
