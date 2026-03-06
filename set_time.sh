@@ -11,8 +11,8 @@ sudo timedatectl set-time "$NEW_TIME"
 echo "Writing system time to RTC..."
 sudo hwclock --systohc
 
-echo "Re-enabling NTP auto synchronization..."
-sudo timedatectl set-ntp true
+#echo "Re-enabling NTP auto synchronization..."
+#sudo timedatectl set-ntp true
 
 echo
 echo "===== Current System Time ====="
