@@ -700,10 +700,10 @@ test_suspend_resume() {
 
 # NTP Time Sync function
 sync_ntp_time() {
-    print_header "NTP 時間自動校正"
+    print_header "內部網路時間自動校正"
     
-    if ! ask_user "是否要從 NTP 伺服器 (192.168.2.115) 同步系統時間？"; then
-        echo -e "${YELLOW}已跳過時間同步。${NC}"
+    if ! ask_user "是否要從內部伺服器同步系統時間？"; then
+        echo -e "${YELLOW}已跳過時間同步.${NC}"
         echo
         return 1
     fi
@@ -712,82 +712,81 @@ sync_ntp_time() {
     local CONF_FILE="/etc/systemd/timesyncd.conf"
     local CONF_BACKUP=""
 
-    # 備份原始配置文件內容
+    # Backup original config content
     if [ -f "$CONF_FILE" ]; then
         CONF_BACKUP=$(cat "$CONF_FILE")
-        echo -e "${BLUE}正在配置臨時 NTP 伺服器: ${WHITE}$NTP_SERVER${NC}"
+        echo -e "${BLUE}Configuring temporary NTP server: ${WHITE}$NTP_SERVER${NC}"
 
-        # 執行臨時修改
+        # Apply temporary modifications
         if grep -q "^NTP=" "$CONF_FILE"; then
             sed -i "s/^NTP=.*/NTP=$NTP_SERVER/" "$CONF_FILE"
         else
             sed -i "/^\[Time\]/a NTP=$NTP_SERVER" "$CONF_FILE"
         fi
-        # 取消註解 FallbackNTP
+        # Uncomment FallbackNTP
         sed -i 's/^#FallbackNTP=/FallbackNTP=/' "$CONF_FILE"
     else
-        echo -e "${RED}錯誤: 找不到配置文件 $CONF_FILE${NC}"
+        echo -e "${RED}Error: Configuration file $CONF_FILE not found${NC}"
     fi
 
-    echo -e "${BLUE}正在重啟 systemd-timesyncd 以套用臨時設定...${NC}"
-    systemctl restart systemd-timesyncd 2>/dev/null || echo -e "${YELLOW}無法重啟 systemd-timesyncd${NC}"
+    echo -e "${BLUE}Restarting systemd-timesyncd to apply temporary settings...${NC}"
+    systemctl restart systemd-timesyncd 2>/dev/null || echo -e "${YELLOW}Failed to restart systemd-timesyncd${NC}"
 
-    echo -e "${BLUE}正在啟用 NTP 同步...${NC}"
+    echo -e "${BLUE}Enabling NTP synchronization...${NC}"
     timedatectl set-ntp true 2>/dev/null
 
-    echo -e "${BLUE}正在等待同步完成 (最長 30 秒)...${NC}"
+    echo -e "${BLUE}Waiting for synchronization to complete (max 30s)...${NC}"
 
     local SYNC_OK=0
     for i in {1..15}; do
-        # 取得系統同步狀態
+        # Get system sync status
         local STATUS_RAW=$(timedatectl status 2>/dev/null)
         local TIMESYNC_RAW=$(timedatectl timesync-status 2>/dev/null)
         
-        # 檢查是否已同步
+        # Check if synced
         local IS_SYNCED=$(echo "$STATUS_RAW" | grep -i "System clock synchronized: yes" || true)
         
-        # 取得當前連接的伺服器
+        # Get current connected server
         local CURRENT_SERVER=$(echo "$TIMESYNC_RAW" | grep -E "Server:|ServerName:" | awk '{print $2}' || echo "None")
 
         if [ -n "$IS_SYNCED" ]; then
-            printf "\r${GREEN}檢查次數 %d/15: [已同步] 伺服器: %s${NC}" $i "$CURRENT_SERVER"
-            # 只要系統判定已同步
+            printf "\r${GREEN}Check %d/15: [Synced] Server: %s${NC}" $i "$CURRENT_SERVER"
             SYNC_OK=1
             echo "" 
             break
         else
-            printf "\r${CYAN}檢查次數 %d/15: [同步中...] 當前伺服器: %s${NC}" $i "$CURRENT_SERVER"
+            printf "\r${CYAN}Check %d/15: [Syncing...] Current Server: %s${NC}" $i "$CURRENT_SERVER"
         fi
 
         sleep 2
     done
 
-    # 同步結束後，立即恢復配置文件 (不重啟服務)
+    # Restore config immediately after check (without restarting service)
     if [ -n "$CONF_BACKUP" ]; then
-        echo -e "${BLUE}正在恢復原始 NTP 配置文件...${NC}"
+        echo -e "${BLUE}Restoring original NTP configuration file...${NC}"
         echo "$CONF_BACKUP" > "$CONF_FILE"
-        echo -e "${GREEN}✓ 配置文件已恢復 (下次重啟後生效)${NC}"
+        echo -e "${GREEN}✓ Configuration file restored (takes effect after next reboot)${NC}"
     fi
 
     if [ "$SYNC_OK" -eq 1 ]; then
-        echo -e "${GREEN}✓ 系統時間已成功與 NTP 伺服器同步${NC}"
-        echo -e "${BLUE}正在將系統時間寫入硬體時鐘 (RTC)...${NC}"
+        echo -e "${GREEN}✓ System time successfully synchronized with NTP server${NC}"
+        echo -e "${BLUE}Writing system time to hardware clock (RTC)...${NC}"
         hwclock --systohc 2>/dev/null
-        echo -e "${GREEN}✓ RTC 已更新${NC}"
+        echo -e "${GREEN}✓ RTC updated${NC}"
     else
         echo ""
-        echo -e "${RED}⚠ 警告: 超時 30 秒後仍無法確認同步狀態${NC}"
+        echo -e "${RED}⚠ WARNING: Unable to confirm synchronization status after 30s timeout${NC}"
     fi
 
     echo
-    echo -e "${WHITE}當前詳細時間狀態：${NC}"
+    echo -e "${WHITE}Current detailed time status:${NC}"
     timedatectl status 2>/dev/null | grep -E "Local time|System clock synchronized|NTP service" || timedatectl status
     if timedatectl timesync-status >/dev/null 2>&1; then
-        echo -e "${WHITE}NTP 連線詳情：${NC}"
+        echo -e "${WHITE}NTP connection details:${NC}"
         timedatectl timesync-status | grep -E "Server|Packet count|Offset" || true
     fi
     echo
-    echo -e "${YELLOW}按 Enter 鍵繼續進入測試選單...${NC}"
+    echo -e "${YELLOW}Press Enter to continue to the test menu...${NC}"
     read -r
 }
 
