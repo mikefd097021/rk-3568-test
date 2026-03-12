@@ -272,7 +272,7 @@ wait_for_device() {
     local wait_count=0
 
     echo -e "${YELLOW}未檢測到 $device_type，請插入 $device_type...${NC}"
-    echo -e "${BLUE}等待 $device_type 插入 (最多等待 ${max_wait} 秒，按 Ctrl+C 跳過)${NC}"
+    echo -e "${BLUE}等待 $device_type 插入 (最多等待 ${max_wait} 秒)${NC}"
 
     while [ $wait_count -lt $max_wait ]; do
         # 檢查是否為模式 (包含 [ 或 *) 還是直接的路徑
