@@ -29,6 +29,24 @@ get_mount_point() {
 
 # Test results tracking
 declare -A test_results
+declare -A test_id_map
+
+# Initialize test name mapping (must match menu descriptions exactly)
+test_id_map["ETH0_CONNECTIVITY"]="1. 網路 eth0 測試"
+test_id_map["ETH1_CONNECTIVITY"]="2. 網路 eth1 測試"
+test_id_map["GPIO_TEST"]="3. GPIO 測試"
+test_id_map["LCD_TEST"]="4. LCD 背光測試"
+test_id_map["EMMC_TEST"]="5. eMMC 存儲測試"
+test_id_map["USB_TEST"]="6. USB 設備測試"
+test_id_map["SDCARD_TEST"]="7. SD卡 測試"
+test_id_map["UART_ttyS3"]="8. UART ttyS3 測試"
+test_id_map["UART_ttyS4"]="9. UART ttyS4 測試"
+test_id_map["SPI_TEST"]="10. SPI 測試"
+test_id_map["I2C_TEST"]="11. I2C 測試"
+test_id_map["TIME_TEST"]="12. 時間系統測試"
+test_id_map["KEY_TEST"]="13. 按鍵測試"
+test_id_map["SUSPEND_RESUME"]="14. 休眠喚醒測試"
+
 test_count=0
 pass_count=0
 fail_count=0
@@ -926,6 +944,16 @@ main() {
             fi
         else
             echo -e "${RED}❌ 有測試項目失敗！${NC}"
+            echo -e "${RED}失敗項目列表：${NC}"
+            # 按 ID 順序遍歷所有可能的測試項目
+            for key in "ETH0_CONNECTIVITY" "ETH1_CONNECTIVITY" "GPIO_TEST" "LCD_TEST" \
+                       "EMMC_TEST" "USB_TEST" "SDCARD_TEST" "UART_ttyS3" \
+                       "UART_ttyS4" "SPI_TEST" "I2C_TEST" "TIME_TEST" \
+                       "KEY_TEST" "SUSPEND_RESUME"; do
+                if [ "${test_results[$key]}" = "FAIL" ]; then
+                    echo -e "  ${RED}- ${test_id_map[$key]}${NC}"
+                fi
+            done
             log_message "QC FAILED"
         fi
 
