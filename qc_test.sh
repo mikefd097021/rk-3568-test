@@ -957,6 +957,19 @@ main() {
             log_message "QC FAILED"
         fi
 
+        # 輸出跳過項目清單
+        if [ $skip_count -gt 0 ]; then
+            echo -e "${YELLOW}跳過項目列表：${NC}"
+            for key in "ETH0_CONNECTIVITY" "ETH1_CONNECTIVITY" "GPIO_TEST" "LCD_TEST" \
+                       "EMMC_TEST" "USB_TEST" "SDCARD_TEST" "UART_ttyS3" \
+                       "UART_ttyS4" "SPI_TEST" "I2C_TEST" "TIME_TEST" \
+                       "KEY_TEST" "SUSPEND_RESUME"; do
+                if [ "${test_results[$key]}" = "SKIP" ]; then
+                    echo -e "  ${YELLOW}- ${test_id_map[$key]}${NC}"
+                fi
+            done
+        fi
+
         echo
         echo -e "${CYAN}詳細日誌請查看: $LOG_FILE${NC}"
         echo
