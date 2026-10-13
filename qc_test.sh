@@ -486,76 +486,92 @@ test_lcd() {
 
     echo -e "${BLUE}開始 LCD 背光測試...${NC}"
 
-    # 獲取最大亮度值
+    # 1) 取得最大亮度值（max_brightness）
     local max_brightness
     if [ -f "$max_brightness_path" ]; then
         max_brightness=$(cat "$max_brightness_path" 2>/dev/null)
-        echo -e "${BLUE}最大亮度值: $max_brightness${NC}"
+        echo -e "${BLUE}最大亮度 (max_brightness): $max_brightness${NC}"
     else
         max_brightness=255  # 預設值
         echo -e "${YELLOW}使用預設最大亮度值: $max_brightness${NC}"
     fi
 
-    # 保存當前亮度
+    # 2) 儲存原始亮度（original_brightness），測試結束後要還原
     local original_brightness
     original_brightness=$(cat "$backlight_path" 2>/dev/null)
-    echo -e "${BLUE}當前亮度: $original_brightness${NC}"
+    echo -e "${BLUE}原始亮度 (original_brightness): $original_brightness${NC}"
 
-    # 步驟1: 設置最大亮度
-    echo -e "${BLUE}設置亮度到最大值 ($max_brightness)...${NC}"
-    if echo "$max_brightness" > "$backlight_path" 2>/dev/null; then
-        echo -e "${GREEN}✓ 亮度已設置到最大${NC}"
-        sleep 2  # 等待亮度變化
-    else
+    # 3) 計算半亮度（half_brightness），用於與 max_brightness 切換測試
+    local half_brightness=$((max_brightness / 2))
+    echo -e "${BLUE}半亮度 (half_brightness): $half_brightness${NC}"
+    echo -e "${BLUE}測試將以 max_brightness <-> half_brightness 反覆切換，結束後還原為 original_brightness ($original_brightness)${NC}"
+
+    # 統一的還原函式：把亮度寫回 original_brightness
+    restore_original_brightness() {
+        echo "$original_brightness" > "$backlight_path" 2>/dev/null
+        echo -e "${BLUE}已還原亮度為原始值 ($original_brightness)${NC}"
+    }
+
+    # --- 步驟 1: 設置亮度到 max_brightness ---
+    echo -e "${BLUE}步驟 1: 切換到最大亮度 ($max_brightness)...${NC}"
+    if ! echo "$max_brightness" > "$backlight_path" 2>/dev/null; then
+        restore_original_brightness
         print_result "LCD_TEST" "FAIL" "無法設置最大亮度"
         return
     fi
+    sleep 2  # 等待亮度變化
 
-    # 步驟2: 減半亮度
-    local half_brightness=$((max_brightness / 2))
-    echo -e "${BLUE}設置亮度到一半 ($half_brightness)...${NC}"
-    if echo "$half_brightness" > "$backlight_path" 2>/dev/null; then
-        echo -e "${GREEN}✓ 亮度已減半${NC}"
-        sleep 2  # 等待亮度變化
-
-        # 詢問用戶是否看到變暗
-        if ask_user "LCD 螢幕是否變暗了？"; then
-            echo -e "${GREEN}✓ LCD 變暗測試通過${NC}"
-        else
-            # 恢復原始亮度
-            echo "$original_brightness" > "$backlight_path" 2>/dev/null
-            print_result "LCD_TEST" "FAIL" "用戶確認 LCD 未變暗"
-            return
-        fi
+    # --- 步驟 2: 切換到 half_brightness，驗證是否變暗 ---
+    echo -e "${BLUE}步驟 2: 切換到半亮度 ($half_brightness)...${NC}"
+    if ! echo "$half_brightness" > "$backlight_path" 2>/dev/null; then
+        restore_original_brightness
+        print_result "LCD_TEST" "FAIL" "無法設置半亮度"
+        return
+    fi
+    sleep 2  # 等待亮度變化
+    if ask_user "LCD 螢幕是否變暗了？"; then
+        echo -e "${GREEN}✓ LCD 變暗測試通過${NC}"
     else
-        # 恢復原始亮度
-        echo "$original_brightness" > "$backlight_path" 2>/dev/null
-        print_result "LCD_TEST" "FAIL" "無法設置一半亮度"
+        restore_original_brightness
+        print_result "LCD_TEST" "FAIL" "用戶確認 LCD 未變暗"
         return
     fi
 
-    # 步驟3: 再次調亮
-    echo -e "${BLUE}重新設置亮度到最大值...${NC}"
-    if echo "$max_brightness" > "$backlight_path" 2>/dev/null; then
-        echo -e "${GREEN}✓ 亮度已調回最大${NC}"
-        sleep 2  # 等待亮度變化
-
-        # 詢問用戶是否看到變亮
-        if ask_user "LCD 螢幕是否重新變亮了？"; then
-            echo -e "${GREEN}✓ LCD 變亮測試通過${NC}"
-            # 恢復原始亮度
-            echo "$original_brightness" > "$backlight_path" 2>/dev/null
-            print_result "LCD_TEST" "PASS" "LCD 背光控制正常，亮度變化測試通過"
-        else
-            # 恢復原始亮度
-            echo "$original_brightness" > "$backlight_path" 2>/dev/null
-            print_result "LCD_TEST" "FAIL" "用戶確認 LCD 未重新變亮"
-        fi
-    else
-        # 恢復原始亮度
-        echo "$original_brightness" > "$backlight_path" 2>/dev/null
-        print_result "LCD_TEST" "FAIL" "無法重新設置最大亮度"
+    # --- 步驟 3: 切換回 max_brightness，驗證是否變亮 ---
+    echo -e "${BLUE}步驟 3: 切換回最大亮度 ($max_brightness)...${NC}"
+    if ! echo "$max_brightness" > "$backlight_path" 2>/dev/null; then
+        restore_original_brightness
+        print_result "LCD_TEST" "FAIL" "無法切換至最大亮度"
+        return
     fi
+    sleep 2  # 等待亮度變化
+    if ask_user "LCD 螢幕是否重新變亮了？"; then
+        echo -e "${GREEN}✓ LCD 變亮測試通過${NC}"
+    else
+        restore_original_brightness
+        print_result "LCD_TEST" "FAIL" "用戶確認 LCD 未重新變亮"
+        return
+    fi
+
+    # --- 步驟 4: 再次切換到 half_brightness，再做一輪驗證以確保穩定 ---
+    echo -e "${BLUE}步驟 4: 再次切換到半亮度 ($half_brightness)...${NC}"
+    if ! echo "$half_brightness" > "$backlight_path" 2>/dev/null; then
+        restore_original_brightness
+        print_result "LCD_TEST" "FAIL" "無法再次設置半亮度"
+        return
+    fi
+    sleep 2  # 等待亮度變化
+    if ask_user "LCD 螢幕是否再次變暗了？"; then
+        echo -e "${GREEN}✓ LCD 再次變暗測試通過${NC}"
+    else
+        restore_original_brightness
+        print_result "LCD_TEST" "FAIL" "用戶確認 LCD 未再次變暗"
+        return
+    fi
+
+    # --- 步驟 5: 測試完成，還原為 original_brightness ---
+    restore_original_brightness
+    print_result "LCD_TEST" "PASS" "LCD 背光控制正常 (original=$original_brightness, max=$max_brightness, half=$half_brightness)"
 }
 
 test_keys() {
